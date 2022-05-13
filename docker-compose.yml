@@ -1,0 +1,47 @@
+version: "3"
+
+services:
+  lambda_app:
+    image: python_env
+    volumes:
+      - .:/code
+    environment:
+      - FLASK_APP=lambda_app
+      - RS_APP_NAME=${RS_APP_NAME}
+      - RS_WRITE_KEY=${RS_WRITE_KEY}
+      - LAMBDA_TIMEOUT=${LAMBDA_TIMEOUT}
+    command: sh util/docker/entrypoint.sh
+    ports:
+      - "5555:5555"
+    depends_on:
+      - destination_app
+      - fake_s3
+
+  fake_s3:
+    image: localstack/localstack:latest
+    environment:
+      - SERVICES=s3
+      - DEBUG=1
+      - LOCALSTACK_HOSTNAME=fake_s3
+      - DATA_DIR=/tmp/localstack/data
+    volumes:
+      - ./util/init_s3.sh:/docker-entrypoint-initaws.d/init_s3.sh
+      - ./test/fixtures/example.ndjson:/opt/code/localstack/example.ndjson
+    ports:
+      - "4563-4599:4563-4599"
+
+  destination_app:
+    image: python_env
+    volumes:
+      - .:/code
+    environment:
+      - FLASK_APP=destination_app
+    command: python destinations/destination_app.py
+    ports:
+      - "5005:5005"
+  
+  test_app:
+    image: python_env
+    volumes:
+      - .:/code
+    command: pytest test/

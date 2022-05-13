@@ -1,0 +1,5 @@
+requests
+flask
+pytest
+boto3
+awscli-local
