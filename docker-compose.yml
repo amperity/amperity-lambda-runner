@@ -1,12 +1,13 @@
 version: "3"
 
 services:
-  lambda_app:
+  mock_gateway:
     image: python_env
+    container_name: lambda-mock-gateway
     volumes:
       - .:/code
     environment:
-      - FLASK_APP=lambda_app
+      - FLASK_APP=lambda_gateway
       - RS_APP_NAME=${RS_APP_NAME}
       - RS_WRITE_KEY=${RS_WRITE_KEY}
       - LAMBDA_TIMEOUT=${LAMBDA_TIMEOUT}
@@ -19,6 +20,7 @@ services:
 
   fake_s3:
     image: localstack/localstack:latest
+    container_name: lambda-fake-s3
     environment:
       - SERVICES=s3
       - DEBUG=1
@@ -32,6 +34,7 @@ services:
 
   destination_app:
     image: python_env
+    container_name: lambda-destination-app
     volumes:
       - .:/code
     environment:
