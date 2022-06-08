@@ -11,15 +11,15 @@ There's a good amount of stuff surrounding the lambda logic in this repo. Here's
 - `build/` The directory were your .zip'd lambda will go once you build it.
 - `destinations/` A dummy flask app that is there to help with local development. All it does is log what it is sent and whatever validation you want to test.
 - `lambdas/` The "core" part of this app. 
-    - `lambdas/lambda_app.py` Is a flask app that acts as a mock lambda gateway trigger. It mimics the lambda context for your testing needs.
+    - `lambdas/lambda_gateway.py` Is a flask app that acts as a mock lambda gateway trigger. It mimics the lambda context for your testing needs.
     - `lambdas/amperity_runner.py` The lambda logic written by Amperity devs to handle, hopefully, most of the logic for your lambda.
     - `lambdas/lambda_handlers/` A repository of custom handlers that you can reference for help.
 - `test/` Repository for the test suite. Primarily used to test `amperity_runner` but if there's something you'd like to write for your handler feel free to add it!
 - `util/` Where all the local development scripts, tools, etc live
 - `docker-compose.yml` Where we define our local containers. 
-    - `lambda_app` Our mock gateway container and entrypoint for the local environment
+    - `lambda_gateway` Our mock gateway container and entrypoint for the local environment
     - `destination_app` The debugging app
-    - `fake_s3` A mock local S3 environment that holds file(s) for testing. 
+    - `fake_s3` A mock local S3 environment that holds file(s) for testing.
 - `Makefile` Easier to use commands for local development
 
 The flow of development in this app is to copy an existing file in `lambdas/lambda_handlers/`, do some renaming, test configuration, build, and go!
@@ -49,13 +49,15 @@ aws --endpoint-url=http://localhost:4566 s3 ls s3://test-bucket
 aws --endpoint-url=http://localhost:4566 s3 cp ./test/fixtures/example.ndjson s3://test-bucket
 ~~~
 
-If you're inside a container you can reference `fake_s3` using it's name as the host. NOTE boto3 connecting to `fake_s3` from inside a container fails due to some endpoint validation inside AWS tools (both awscli & boto don't allow `fake_s3:4566` as a host) so you need to write files from outside the container and then use `requests` to read the file from inside the container. See below:
+If you're inside a container you can reference `fake_s3` using it's name as the host. 
 
 ~~~python
 import requests
 resp = requests.get('http://fake_s3:4566/test-bucket/example.ndjson')
 print(resp.content)
 ~~~
+
+NOTE boto3 connecting to `fake_s3` from inside a container fails due to endpoint validation inside AWS tools (both awscli & boto don't allow `fake_s3:4566` as a host) so you need to write files from outside the container and then use `requests` to read the file from inside the container.
 
 
 ## Configuring your Env
@@ -77,7 +79,7 @@ write a run script that does that. ie keep docker-compose cleaner
 
 1. Local development using destination_app or your own destination
 1. Write some tests with any new behavior
-1. Build your lambda .zip (TODO how to do this)
+1. Build your lambda .zip with `make lambda-build filename=rudderstack.py`
 
 Repo Structure:
 ~~~
@@ -167,12 +169,55 @@ https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-create-
 
 Example `curl`:
 ~~~bash
-curl -X POST -H 'x-api-key: {LAMBDA API KEY}' \
-    -H '{"Content-Type": "Application/json"}' \
-    -d  '{ "settings": {"audience_name": "Test Audience",}, "callback_url": "", "access_token": "top_secret", "data_url": "",}' \
+curl -X POST -H 'x-api-key: {{ lambda gateway api key }}' \
+    -H '{"Content-Type": "application/json"}' \
+    -d '{ "label_name": "test label", "webhook_settings": {"mock":"data"}, "access_token": "some-token", "webhook_id": "some-id", "callback_url": "https://app.amperity.systems/api/v1/plugin/webhook/", "data_url": "http://fake_s3:4566/test-bucket/example.ndjson" }' \
     'https://4e8zmhav3e.execute-api.us-east-2.amazonaws.com/default/phil-test'
 ~~~
 
+The shape of the body in the request will have these fields
+~~~json
+{
+    "webhook_settings": {"some": "setting"},
+    "label_name": "test label",
+    "access_token": "2:SbHdltrCSX2zbMZrutK4lw:e43c14cc893309e28a0bbd94d06fb44138cc3383492b00de548a7fc437aa3280",
+    "webhook_id": "wh-9tftMuJD7qnjuH6MvPUcbR",
+    "callback_url": "http://app.local.amperity.systems/api/v1/plugin/webhook",
+    "data_url": "http://fake_s3:4566/test-bucket/example.ndjson"
+}
+~~~
+
+
+
+## How to setup IAM permissions
+First step is to copy function arn from your lambda page. (Function overview on the right side under description)
+
+Second step is open `Configuration -> Permissions` and open role associated with this lambda
+
+In the new tab go to `Add permissions` and select `Attach policies`
+
+You'll be moved to a new page and there you'll select `Create Policy`
+
+Navigate to the JSON tab and copy in the below json. Make sure to replace `Resource` with your function arn.
+
+~~~
+
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "AllowLambdaToInvokeLambda",
+            "Effect": "Allow",
+            "Action": "lambda:InvokeFunction",
+            "Resource": "arn:aws:lambda:us-east-2:884752987182:function:phil-test"
+        }
+    ]
+}
+~~~
+
+Create the policy and attach it to the lambda's role. 
+
+You are good to go!
 
 ## Resources
 
@@ -181,3 +226,7 @@ https://dev.to/goodidea/how-to-fake-aws-locally-with-localstack-27me
 https://blog.jdriven.com/2021/03/running-aws-locally-with-localstack/
 https://docs.localstack.cloud/aws/s3/
 https://docs.localstack.cloud/aws/lambda/
+
+https://github.com/tomasbasham/ratelimit/blob/master/ratelimit/decorators.py
+https://github.com/icecrime/RateLimiting/blob/master/ratelimiting.py
+https://github.com/RazerM/ratelimiter/blob/master/ratelimiter/_sync.py
