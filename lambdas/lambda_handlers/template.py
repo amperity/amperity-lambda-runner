@@ -5,8 +5,7 @@ from amperity_runner import AmperityRunner
 import requests
 
 # TODO: These shouldn't be defined in the compose file. Need an easier way to configure env variables
-RS_APP_NAME=os.environ.get('RS_APP_NAME', 'fake app')
-RS_WRITE_KEY=os.environ.get('RS_WRITE_KEY', 'fake key')
+SOME_ENV_VAR=os.environ.get('SOME_ENV_VAR')
 
 
 def lambda_handler(event, context):
@@ -16,32 +15,26 @@ def lambda_handler(event, context):
                     information about the function and runtime environment
     """
 
-    if not RS_APP_NAME or not RS_WRITE_KEY:
+    if not SOME_ENV_VAR:
         print('Configure your environment variables plz :)')
         return
 
+    # Configure your session to your destination requirements here.
     destination_url = 'http://destination_app:5005/mock/rudderstack'
     sess = requests.Session()
-    sess.auth = (RS_WRITE_KEY, '')
+    sess.auth = (SOME_ENV_VAR, '')
     sess.headers.update({'Content-Type': 'application/json'})
 
-    payload = json.loads(event['body'])
+    req = event['body']
+    payload = json.loads(req)
 
-    add_customer_id = lambda d: dict(d, **{
-            'userId': d['cust_id'] if 'cust_id' in d else 1234,
-            'audience_name': payload.get('audience_name'),
-            'type': 'track',
-            'event': 'Product Purchased'})
-
+    # There are more fields to configure for batch sizing, rate limiting, etc.
+    #   See amperity_runner.py if you want to override any of those values
     runner = AmperityRunner(
         payload,
         context,
         destination_url,
         sess,
-        # batch_size=3500,
-        # batch_offset=0,
-        # rate_limit=10000,
-        custom_mapping=add_customer_id,
     )
 
     status = runner.start_job()
