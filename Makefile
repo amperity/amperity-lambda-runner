@@ -1,26 +1,25 @@
 IMAGE_VERSION = latest
-COMPOSE = docker-compose -p lambda_test
+COMPOSE = docker-compose -p local_lambda
 
 
 # ----- Local Development -----
 
 up:
-	${COMPOSE} up -d lambda_app
+	${COMPOSE} up -d mock_gateway
 
 down:
 	${COMPOSE} down -v
 
 # ----- View Logs -----
 
-# ${COMPOSE} logs --tail=0 --follow
 logs:
-	${COMPOSE} logs --follow
+	${COMPOSE} logs --timestamps --tail=0 --follow
 
 lambda-logs:
-	docker logs lambda_test_lambda_app-1 --follow
+	${COMPOSE} logs --timestamps mock_gateway --follow
 
 dest-logs:
-	docker logs lambda_test_destination_app-1 --follow
+	${COMPOSE} logs --timestamps destination_app --follow
 
 # ----- Testing -----
 
@@ -33,10 +32,10 @@ sh:
 	docker run -it --rm python_env
 
 lambda-sh:
-	docker exec -it lambda_test-lambda_app-1 /bin/bash
+	docker exec -it lambda-mock-gateway /bin/bash
 
 dest-sh:
-	docker exec -it lambda_test-destination_app-1 /bin/bash
+	docker exec -it lambda-destination-app /bin/bash
 
 # ----- Debug Helpers -----
 
@@ -44,10 +43,10 @@ restart:
 	${COMPOSE} restart
 
 restart-lambda:
-	${COMPOSE} restart lambda_app
+	${COMPOSE} restart lambda_gateway
 
 restart-dest:
-	${COMPOSE} restart lambda_app
+	${COMPOSE} restart destination_app
 
 # ----- Build Commands -----
 
@@ -55,4 +54,4 @@ docker-build:
 	docker build -t "python_env:${IMAGE_VERSION}" -f "util/docker/Dockerfile" .
 
 lambda-build:
-	sh util/build.sh
+	sh util/build.sh ${filename}
