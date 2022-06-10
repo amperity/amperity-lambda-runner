@@ -68,6 +68,13 @@ class AmperityRunner:
         :params
             payload : str
                 The body of the lambda event object
+                payload = {
+                    "data_url": "", 
+                    "webhook_settings": {},
+                    "callback_url": "",
+                    "webhook_id": "",
+                    "access_token": ""
+                    }
             context : LambdaContext
                 The context object provided by lambda
             destination_url : str
@@ -83,19 +90,10 @@ class AmperityRunner:
             custom_mapping : lambda, optional
                 Lambda function that does some operation on the shape of the data.
         """
-        self.data_url = payload.get('data_url')
-        self.audience_data = payload.get('webhook_settings', {})
-        callback_url = payload.get('callback_url')
-        webhook_id = payload.get('webhook_id')
-
-        self.status_url = callback_url + webhook_id
-        self.access_token = payload.get('access_token')
 
         self.lambda_context = lambda_context
-
         self.destination_url = destination_url
         self.destination_session = destination_session
-
         self.batch_size = batch_size
         self.batch_offset = batch_offset
         self.rate_limit = rate_limit
@@ -103,79 +101,48 @@ class AmperityRunner:
         self.rate_limit_time_start = None
         self.custom_mapping = custom_mapping
 
-    
-    def start_job(self):
-        resp = requests.get(self.data_url)
+        self.data_url = self.payload.get("data_url")
+        self.webhook_settings = self.payload.get("webhook_settings")
+        self.callback_url = self.payload.get("callback_url")
+        self.webhook_id = self.payload.get("webhook_id")
+        self.access_token = self.payload.get("access_token")
 
-        if resp.status_code != 200:
-            print('Bad download')
-            return 'error'
-
-        file_content = resp.content.decode('utf-8').splitlines()
-
-        print(f'Processing file from line: {self.batch_offset}')
-        
-        job_status = self._read_ndjson(file_content[self.batch_offset:])
-
-        # self._update_status()
-
-        return job_status
+        self.status_url = self.callback_url + self.webhook_id
 
     
-    def _read_ndjson(self, file_content):
-        file_length = len(file_content)
+    def download_file(self, url):
+        res = requests.get(url)
+        if res.status_code != 200:
+            print("Could not download file.")
+            return False
+        return res.content
+    
+    def poll_for_status(self, state, progress = 0, errors = []):
+        headers = {
+            'Content-Type': 'application/json',
+            'X-Amperity-Tenant': 'noodles',
+            'Authorization': f'Bearer {self.access_token}'
+            }
+        data = json.dumps({
+            "state": state,
+            "progress": progress,
+            "errors": errors})
+        res = requests.put(self.status_url, headers = headers, data = data)
+        print(res)
+        # add some error handling, or handle this response somehow?
+    
+    def run(self, callback):
+        errors = []
+        self.poll_for_status("running", 0, errors)
+        downloaded_file = self.download_file(self.data_url)
+        if not downloaded_file:
+            errors.append("Could not download file.")
+            self.poll_for_status("failed", 0, errors)
+            return False
 
-        # TODO: lambda timeout logic goes here
-        while self.batch_offset < file_length:
-            batch = file_content[self.batch_offset: self.batch_offset + self.batch_size]
-            # TODO: error handling? We should be able to trust the format of the file...we write it
-            data_batch = [json.loads(d) for d in batch]
-
-            self.batch_offset += len(data_batch) if len(data_batch) < self.batch_size else self.batch_size
-
-            # TODO: Reporting status to the callback url. How often do we want to do that?
-            batch_status = self._process_batch(data_batch)
-
-            print(f'Finished processing {self.batch_offset} records')
-
-            if batch_status == 'timeout':
-                return batch_status
-
-        return 'success'
-
-
-    @rate_limit
-    def _process_batch(self, batch_data):
-        if self.custom_mapping:
-            output_data = [self.custom_mapping(d) for d in batch_data]
-
-        resp = self.destination_session.post(url=self.destination_url, data=json.dumps({'batch': output_data if output_data else batch_data}))
-
-        if resp.status_code != 200:
-            print('POST failed: ')
-            print(resp.content)
-
-
-    def _update_status(self):
-        """
-        Testing this locally is blocked by docker networking for now. Use the below curl on local
-        curl -X PUT 'http://app.local.amperity.systems:8093/webhook/v1/< webhook-id >' \
-            -H 'X-Amperity-Tenant: planex' \
-            -H 'Authorization: Bearer < access-token >' \
-            -H 'Content-Type: application/json' -d '{"status": "succeeded"}'
-
-        TODO: Remove hardcoded payload for data passed in from params
-        """
-
-        resp = requests.put(
-            self.status_url,
-            headers={
-                'Content-Type': 'application/json',
-                'X-Amperity-Tenant': 'noodles',
-                'Authorization': f'Bearer {self.access_token}'
-            }, 
-            data=json.dumps({
-                "state": "succeeded",
-                "progress": 1,
-                "errors": ["no errors ever :)"]}))
-        print(resp)
+        res = callback(errors)
+        if not res:
+            errors.append("Error running function.")
+            self.poll_for_status("failed", 0, errors)
+            return False
+        self.poll_for_status("succeeded", 1, errors)
