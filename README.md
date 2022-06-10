@@ -99,6 +99,21 @@ amperity_runner.py
 app.py
 ~~~
 
+## AWS Connect Notes
+
+Writing this here as an initial set of notes for how to use this repo to test a new lambda you are working on.
+
+1. Create Query, Destination, Orchestration, etc in noodles tenant.
+1. Create new Lambda called aws_conenct & create gateway for it
+1. Upload a version of the aws_connect.py lambda that logs the data_url only.
+1. Grab the data_url from the cloudwatch logs and paste into browser to download the file locally
+1. Move that file from downloads into test/fixtures ane run `make up`.
+1. Write logic using fakes3 file and test logic.
+1. Build and upload finished version of aws_connect.py (ie `make build filename=aws_connect.py`)
+1. Test a full run of Orchestration -> Lambda -> AWS Connect App
+    - You'll probably need to bump the timeout on the lambda. 100 records takes ~10 seconds to complete.
+
+
 ## Notes
 
 
@@ -192,7 +207,7 @@ The shape of the body in the request will have these fields
 ## How to setup IAM permissions
 First step is to copy function arn from your lambda page. (Function overview on the right side under description)
 
-Second step is open `Configuration -> Permissions` and open role associated with this lambda
+Second step is open `Configuration -> Permissions` and open role associated with this lambda. (ie `Execution Role`)
 
 In the new tab go to `Add permissions` and select `Attach policies`
 

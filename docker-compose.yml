@@ -28,7 +28,7 @@ services:
       - DATA_DIR=/tmp/localstack/data
     volumes:
       - ./util/init_s3.sh:/docker-entrypoint-initaws.d/init_s3.sh
-      - ./test/fixtures/example.ndjson:/opt/code/localstack/example.ndjson
+      - ./test/fixtures:/tmp/localstack/fixtures
     ports:
       - "4563-4599:4563-4599"
 
