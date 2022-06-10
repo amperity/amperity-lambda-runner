@@ -22,6 +22,10 @@ select 'Profile' as the service, select 'ListProfiles' under List, select 'Searc
 ['CreateProfile', 'DeleteProfile', 'UpdateProfile'] under write. Next check the box to allow these permissions
 on the domains in your account and name this policy in the following screen. Finally search this policy and 
 associate it with your lambda.
+
+Finally when you upload the zip of this lambda you will have to update 2 things.
+1) Set the timeout to at least 5 minutes 'Configuration -> General Configuration'
+2) Set the Handler in 'Runtime Settings' to 'app.lambda_handler'
 """
 
 
@@ -64,14 +68,15 @@ def lambda_handler(event, context):
         region_name='us-east-1',
     )
     payload = json.loads(event['body'])
+    settings = json.loads(payload['settings'])
 
     # Settings field is always in the payload. Check if it it has a key/value of 'truncate': True
-    if payload['settings'].get('truncate'):
+    if settings.get('truncate'):
         truncate_connect_instance()
 
     # https://requests.readthedocs.io/en/latest/user/advanced/?highlight=body-content-workflow#body-content-workflow
     with requests.get(payload.get('data_url'), stream=True) as resp:
-        print('Starting Requests Context')
+        print('Starting AWS Connect Upload')
         # https://requests.readthedocs.io/en/latest/user/advanced/?highlight=body-content-workflow#streaming-requests
         for line in resp.iter_lines():
             line_content = json.loads(line.decode('utf-8'))
@@ -96,10 +101,12 @@ def lambda_handler(event, context):
                 **row_val
             )
 
+    print('Finished AWS Connect Upload')
+
     report_url = payload.get('callback_url') + payload.get('webhook_id')
     auth_str = f"Bearer {payload.get('access_token')}"
 
-    resp = requests.put(
+    callback_resp = requests.put(
         report_url,
         headers={
             'Content-Type': 'application/json',
@@ -107,12 +114,16 @@ def lambda_handler(event, context):
             'Authorization': auth_str
         }, 
         data=json.dumps({
-            "state": "failed",
-            "progress": .5,
-            "reason": "manual fail"
+            "state": "succeeded",
+            "progress": 1
         })
     )
-    print(resp.status_code)
+
+    if callback_resp.status_code != 200:
+        print(callback_resp.status_code)
+        print(callback_resp.content)
+
+    print('Lambda Finished')
     
     return { 'statusCode': 200 }
 

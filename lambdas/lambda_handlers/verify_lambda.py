@@ -6,6 +6,11 @@ import requests
 def lambda_handler(event, context):
     """
     NOTE: This lambda is written for testing our internal workflow logic and tracking status outside the Amperity App.
+
+    curl -X PUT 'https://app.amperity.com/webhook/v1/{{ webhook-id }}' \
+        -H 'X-Amperity-Tenant: {{ tenant-id }}' \
+        -H 'Authorization: Bearer {{ access-token }}' \
+        -H 'Content-Type: application/json' -d '{"state": "succeeded", "progress": 1, "errors": ["no errors :)"]}}'
     """
     payload = json.loads(event['body'])
 
@@ -31,7 +36,9 @@ def lambda_handler(event, context):
         data=json.dumps({
             "state": "succeeded",
             "progress": 1,
-            "errors": ["no errors ever :)"]}))
+            "errors": ["no errors :)"]
+        })
+    )
 
     print(resp.status_code)
     print(resp.content)
