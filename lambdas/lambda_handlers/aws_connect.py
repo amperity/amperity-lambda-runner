@@ -14,6 +14,14 @@ to a Connect instance. Most of the field naming was done in the SQL query that i
 but address data needs to be reshaped into a dict. Otherwise the workflow is straightforward and requires little
 work. Throughout the code I left comments for improvements/next steps but generally the only other work that might
 need to happen is implementing a truncate and load functionality.
+
+How to add permissions to the lambda in AWS:
+In AWS lambda go to 'Configuration -> Permissions' and click on the role associated with the lambda. Click the
+'Add Permissions' dropdown, select 'Attach Policies', and finally select 'Create Policy'. In the visual editor 
+select 'Profile' as the service, select 'ListProfiles' under List, select 'SearchProfiles' under Read, and 
+['CreateProfile', 'DeleteProfile', 'UpdateProfile'] under write. Next check the box to allow these permissions
+on the domains in your account and name this policy in the following screen. Finally search this policy and 
+associate it with your lambda.
 """
 
 
