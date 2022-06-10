@@ -1,9 +1,4 @@
-import functools ,json
-
-from datetime import datetime
-from time import sleep
-
-import boto3
+import json
 import requests
 
 class AmperityRunner:
