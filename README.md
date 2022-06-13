@@ -1,8 +1,8 @@
 # Lambda Testing Environment
 
-This project is based off of a hunch that we can have a lambda like environment locally for easier testing of ~60%? of our lambda logic.
+This project serves two main purposes. First, it is a library of lambda_handlers written by amperity devs with some helpful runner logic to abstract away general use cases. Second, it is a "full" local lambda-like environment for your development needs. What that mostly means is there is a flask app that acts as the lambda API gateway that you can curl to trigger and a fakes3 that holds sample files you can write logic against. 
 
-The idea is two flask apps running in Docker. App 1 will be our lambda and it will implement the actual logic you want lambda to perform. App 2 will be a simple API to receive data from your "lambda" and log it for debugging. If this is possible/useful we can add simple logic to App 2 to test rate limiting, validation, timeouts, etc in our lambda.
+More notes and refinement coming soon!
 
 ## How to read
 
@@ -15,6 +15,7 @@ There's a good amount of stuff surrounding the lambda logic in this repo. Here's
     - `lambdas/amperity_runner.py` The lambda logic written by Amperity devs to handle, hopefully, most of the logic for your lambda.
     - `lambdas/lambda_handlers/` A repository of custom handlers that you can reference for help.
 - `test/` Repository for the test suite. Primarily used to test `amperity_runner` but if there's something you'd like to write for your handler feel free to add it!
+    - `test/fixtures` Any file with a .ndjson extension put into this folder will be hosted in fakes3 when the docker containers are launched.
 - `util/` Where all the local development scripts, tools, etc live
 - `docker-compose.yml` Where we define our local containers. 
     - `lambda_gateway` Our mock gateway container and entrypoint for the local environment
@@ -25,183 +26,41 @@ There's a good amount of stuff surrounding the lambda logic in this repo. Here's
 The flow of development in this app is to copy an existing file in `lambdas/lambda_handlers/`, do some renaming, test configuration, build, and go!
 
 
-## Developer notes
-
-
-1. Test logic with larger datasets
-1. Verify lambda timeout logic
-    - Know when to end the lambda/kick off next
-    - Know where to pick up from previous run
-1. Wrtie the build script to make a .zip
-1. Investigate localstack for lambda gateway/context for better local development
-
-Do we want to write up an example of how to use/setup this environment?
-There do not seem to be great resources for this stuff.
-
-
-## Localstack Tests
-
-How to use `fake_s3` for your local development. Using your CLI you can run `awscli` commands as you would and just override the endpoint to use. See below:
-
-~~~
-aws --endpoint-url=http://localhost:4566 s3 mb s3://test-bucket
-aws --endpoint-url=http://localhost:4566 s3 ls s3://test-bucket
-aws --endpoint-url=http://localhost:4566 s3 cp ./test/fixtures/example.ndjson s3://test-bucket
-~~~
-
-If you're inside a container you can reference `fake_s3` using it's name as the host. 
-
-~~~python
-import requests
-resp = requests.get('http://fake_s3:4566/test-bucket/example.ndjson')
-print(resp.content)
-~~~
-
-NOTE boto3 connecting to `fake_s3` from inside a container fails due to endpoint validation inside AWS tools (both awscli & boto don't allow `fake_s3:4566` as a host) so you need to write files from outside the container and then use `requests` to read the file from inside the container.
-
 
 ## Configuring your Env
 
-1. Make sure you have `docker` running
-1. `docker build -t "python_env:latest" -f "util/docker/Dockerfile" .`
-    - This builds the image from the Dockerfile in `util/docker`
-1. `docker-compose up -d`
-    - Using the compose file at this level we launch our two apps.
-1. (OPTIONAL) `docker run -it --rm {CONTAINER NAME HERE}`
-    - This runs a container using that image, drops you into an interactive shell, and cleans up once you exit
+We utilize Make to handle all the local development commands. Feel free to read that file to see everything at your disposal but below are the commands needed to get up and running quick.
+
+1. `make docker-build` builds the custom python image we use in this repo.
+1. Add any environment variables your lambda will need to `.env`.
+    - This file *is* tracked by git so make sure to remove any actual secrets before you commit.
+1. `make up` brings up the 3 containers in the docker-compose.yml file.
+    - You only need two of them (mock_gateway and fakes3) for regular development.
+
+You now have a running environment! Below are a couple more helpful commands if you need to reset/debug odd behavior.
+
+1. `make down` brings down all docker containers in this project.
+1. `make sh` launches a new container using the python_env image for you to test in.
+1. `make logs` Will display the logs from all containers from the time you run the command.
+
+There are more commands in Makefile you can use and feel free to add some yourself! These are most of the common commands you will need to use this repo.
+
+The next section will include the rest and how to develop in this environment.
 
 
 ## Workflow 
 
-Either we have a long list in our docker-compose with env variables
-OR
-write a run script that does that. ie keep docker-compose cleaner
+First, you need to identify the type of data you are processing in your lambda. Our recommended approach is to use the `Queries` tab in your amperity app to do as much processing in SQL as possible (ie rename fields, calculate values, etc) and then send that file through an orchestration to lambda. However, this first lambda should be a no-op and simply log the `data_url` field to cloudwatch and return a 200. Grab that `data_url` and paste it into your browser to download it to your computer and move it `test/fixtures/`. Now whenever you run `make up` that file will be in fakes3 and available for testing.
 
-1. Local development using destination_app or your own destination
-1. Write some tests with any new behavior
-1. Build your lambda .zip with `make lambda-build filename=rudderstack.py`
+Next, you can work on your lambda logic however makes the most sense for you. The only mock services we provide in this project are S3 and an API. If you would like to write automated tests you can use the test directory for that. 
 
-Repo Structure:
-~~~
-README.md
-docker-compose.yml
-Makefile
-destinations/
-lambdas/
-test/
-util/
-~~~
+Once you have finished your lambda logic and want to test the end to end processs you can build your lambda. 
 
-Build Script Output (as a .zip):
-~~~
-pip package(s)/
-amperity_runner.py
-app.py
-~~~
+`make lambda-build filename={{ file in lambda_handlers/ }}`
 
-## AWS Connect Notes
+This will output a file called `lambda_handler.zip` in the build directory. In the lambda dashboard use the "Upload From" dropdown, select ".zip file", and navigate to wherever that `lambda_handler.zip` is on your computer. 
 
-Writing this here as an initial set of notes for how to use this repo to test a new lambda you are working on.
-
-1. Create Query, Destination, Orchestration, etc in noodles tenant.
-1. Create new Lambda called aws_conenct & create gateway for it
-1. Upload a version of the aws_connect.py lambda that logs the data_url only.
-1. Grab the data_url from the cloudwatch logs and paste into browser to download the file locally
-1. Move that file from downloads into test/fixtures ane run `make up`.
-1. Write logic using fakes3 file and test logic.
-1. Build and upload finished version of aws_connect.py (ie `make build filename=aws_connect.py`)
-1. Test a full run of Orchestration -> Lambda -> AWS Connect App
-    - You'll probably need to bump the timeout on the lambda. 100 records takes ~10 seconds to complete.
-
-
-## Notes
-
-
-~~~
-Lowest barier to entry
-
-2 ways of developing. 
-1) Write your own/copy and hold your own.
-2) Add to our repo with tests as an example/reference
-
-~~~
-
-Webhook connector will send a request to the gateway with a pre-signed S3 url.
-Using requests we can download the data into our script
-Validate the json and create batches to send out to the destination API 
-
----
-
-How to deploy:
-Make sure any third party packages are installed in your directory with:
-`pip install -t requests ./`
-
-From the lambda dir zip the contents:
-`zip -r test.zip ./`
-
-On Lambda dashboard upload the zip file and deploy.
-
-Double check that 'Runtime Settings' has the correct path to app.py.
-
----
-Timeout Workflow:
-
-1) We need to configure the lambda to our desired AWS enforced timeout.
-2) We can track the remaining milliseconds with: context.get_remaining_time_in_millis()
-3) We have an initial offset and a current offset while posting data.
-4) When we are below 5? (depends on avg batch process time & request time) seconds left in the timeout we 
-    kickoff another lambda using the offset of the running lambda.
-5) Repeat until finished
-6) Probably forgot something
-
-TODO: Do we want a mock context class to have testing against?
-    - Does this exist?
-
-
-Potential Test Environment:
-1) override webhook url in connector to localhost
-2) webhook generate presigned url to aws-dev
-3) the "wrapper" around the lambda kicks it off and tracks it
-4) lambda runs and outputs to our dummy api that is just a flask app that logs the request
-
-Two Docker containers running basic flask apps
-Container 1:
-    Has the 'lambda' in it, lambda control logic, and something else?
-
-Container 2:
-    Single endpoint receive data from 'lambda' and log/store it in memory for debugging.
-
----
-
-Environment Setup:
-~~~
-export RS_APP_NAME=
-export RS_WRITE_KEY=
-~~~
-
-https://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-create-api-as-simple-proxy-for-lambda.html
-
-
-Example `curl`:
-~~~bash
-curl -X POST -H 'x-api-key: {{ lambda gateway api key }}' \
-    -H '{"Content-Type": "application/json"}' \
-    -d '{ "label_name": "test label", "webhook_settings": {"mock":"data"}, "access_token": "some-token", "webhook_id": "some-id", "callback_url": "https://app.amperity.systems/api/v1/plugin/webhook/", "data_url": "http://fake_s3:4566/test-bucket/example.ndjson" }' \
-    'https://4e8zmhav3e.execute-api.us-east-2.amazonaws.com/default/phil-test'
-~~~
-
-The shape of the body in the request will have these fields
-~~~json
-{
-    "webhook_settings": {"some": "setting"},
-    "label_name": "test label",
-    "access_token": "2:SbHdltrCSX2zbMZrutK4lw:e43c14cc893309e28a0bbd94d06fb44138cc3383492b00de548a7fc437aa3280",
-    "webhook_id": "wh-9tftMuJD7qnjuH6MvPUcbR",
-    "callback_url": "http://app.local.amperity.systems/api/v1/plugin/webhook",
-    "data_url": "http://fake_s3:4566/test-bucket/example.ndjson"
-}
-~~~
-
+The final configuration for you lambda is in AWS. Set the "Handler" option in "Runtime Settings" to `app.lambda_handler`. Finally pick a desired timeout for your lambda in "Configuration -> General Configuration". The max is 15 minutes so we recommend using that.
 
 
 ## How to setup IAM permissions
@@ -233,6 +92,94 @@ Navigate to the JSON tab and copy in the below json. Make sure to replace `Resou
 Create the policy and attach it to the lambda's role. 
 
 You are good to go!
+
+
+## AWS Connect Notes
+
+Writing this here as an initial set of notes for how to use this repo to test a new lambda you are working on.
+
+1. Create Query, Destination, Orchestration, etc in noodles tenant.
+1. Create new Lambda called aws_conenct & create gateway for it
+1. Upload a version of the aws_connect.py lambda that logs the data_url only.
+1. Grab the data_url from the cloudwatch logs and paste into browser to download the file locally
+1. Move that file from downloads into test/fixtures ane run `make up`.
+1. Write logic using fakes3 file and test logic.
+1. Build and upload finished version of aws_connect.py (ie `make build filename=aws_connect.py`)
+1. Test a full run of Orchestration -> Lambda -> AWS Connect App
+    - You'll probably need to bump the timeout on the lambda. 100 records takes ~10 seconds to complete.
+
+
+## Notes
+
+The shape of the body in the request will have these fields
+~~~json
+{
+    "settings": {"some": "setting"},
+    "label_name": "test label",
+    // The s3 url where the data is living
+    "data_url": "http://fake_s3:4566/test-bucket/sample.ndjson",
+
+    // Everything below is only necessary if you are testing status logic in the amperity system
+    
+    // Token used to authorize the request with amperity API
+    "access_token": "2:SbHdltrCSX2zbMZrutK4lw:e43c14cc893309e28a0bbd94d06fb44138cc3383492b00de548a7fc437aa3280",
+    // Identifier for the specific webhook job you are currently processing
+    "webhook_id": "wh-9tftMuJD7qnjuH6MvPUcbR",
+    // The endpoint to send the status request to
+    "callback_url": "https://app.amperity.com/webhook/v1/"
+}
+~~~
+
+How to curl mock lambda:
+~~~bash
+curl -X POST 'http://localhost:5555/lambda/{{ lambda filename (no .py )}}' \
+    -H 'Content-Type: application/json' -d '{"data_url": "http://fake_s3:4566/test-bucket/sample.ndjson"}'
+~~~
+
+How to curl a deployed lambda:
+~~~bash
+curl -X POST -H 'x-api-key: {{ lambda gateway api key }}' '{{ lambda api gateway url }}' \
+    -H '{"Content-Type": "application/json"}' \
+    -d '{ "label_name": "test label", "settings": {}, "data_url": "http://some-s3-bucket.example/filename" }' \
+~~~
+
+
+## Localstack Notes
+
+Localstack seems very powerful and helpful, however, it has rather poor documentation from what I could dig up. This section is a semi-formal walkthrough of how we use it in case you need to do something similar.
+
+How to use `fake_s3` for your local development. Using your CLI you can run `awscli` commands as you would and just override the endpoint to use. See below:
+
+~~~
+aws --endpoint-url=http://localhost:4566 s3 mb s3://test-bucket
+aws --endpoint-url=http://localhost:4566 s3 ls s3://test-bucket
+aws --endpoint-url=http://localhost:4566 s3 cp ./test/fixtures/sample.ndjson s3://test-bucket
+~~~
+
+If you're inside a container you can reference `fake_s3` using it's name as the host. 
+
+~~~python
+import requests
+resp = requests.get('http://fake_s3:4566/test-bucket/sample.ndjson')
+print(resp.content)
+~~~
+
+NOTE boto3 connecting to `fake_s3` from inside a container fails due to endpoint validation inside AWS tools (both awscli & boto don't allow `fake_s3:4566` as a host) so you need to write files from outside the container and then use `requests` to read the file from inside the container.
+
+
+## Developer notes
+
+Put things here so we have a somewhat comprehensive list of features we want to implement.
+
+1. Test logic with larger datasets.
+    - `aws_connect.py` implements a rough attempt at this. Stream in results from S3 so we don't run out of memory.
+1. Verify lambda timeout logic
+    - Write up IAM permission formal notes
+    - The initiation of the lambda is a gateway event and body comes in as a string we cast to dict. Boto3 invocation brings in an actual dict and our parsing logic falls apart.
+1. The lambda API gateway will timeout the connection after ~3 minutes and our app will receive a 500. 
+    - Is there a good/easy to use template we can make where the lambda_handler parses the body, launches the actual "logic lambda", and returns 200 to the app?
+1. Investigate localstack for lambda gateway/context for better local development
+
 
 ## Resources
 
