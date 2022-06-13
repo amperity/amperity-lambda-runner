@@ -148,6 +148,13 @@ curl -X POST -H 'x-api-key: {{ lambda gateway api key }}' '{{ lambda api gateway
 
 Localstack seems very powerful and helpful, however, it has rather poor documentation from what I could dig up. This section is a semi-formal walkthrough of how we use it in case you need to do something similar.
 
+Rough notes below. Want to do a more thorough dive through their documentation/the couple blog posts I saw and then flesh this out.
+
+Any files in `/docker-entrypoint-initaws.d/` will be executed on startup. Wrote a custom init script and threw it in there to load our files.
+I didn't dig into the localstack init scripts but had issues mounting fixture files to load into the environment. Best workflow I found was to mount the volumes in `/tmp/localstack/` so we didn't override any of the important files.
+
+Helpful snippets below.
+
 How to use `fake_s3` for your local development. Using your CLI you can run `awscli` commands as you would and just override the endpoint to use. See below:
 
 ~~~
