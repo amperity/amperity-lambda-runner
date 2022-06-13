@@ -5,8 +5,8 @@ from amperity_runner import AmperityRunner
 import requests
 
 # TODO: These shouldn't be defined in the compose file. Need an easier way to configure env variables
-RS_APP_NAME=os.environ.get('RS_APP_NAME', 'fake app')
-RS_WRITE_KEY=os.environ.get('RS_WRITE_KEY', 'fake key')
+RS_APP_NAME=os.environ.get('RS_APP_NAME')
+RS_WRITE_KEY=os.environ.get('RS_WRITE_KEY')
 
 
 def lambda_handler(event, context):

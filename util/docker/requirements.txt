@@ -3,3 +3,4 @@ flask
 pytest
 boto3
 awscli-local
+python-dotenv
