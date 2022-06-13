@@ -8,9 +8,6 @@ services:
       - .:/code
     environment:
       - FLASK_APP=lambda_gateway
-      - RS_APP_NAME=${RS_APP_NAME}
-      - RS_WRITE_KEY=${RS_WRITE_KEY}
-      - LAMBDA_TIMEOUT=${LAMBDA_TIMEOUT}
     command: sh util/docker/entrypoint.sh
     ports:
       - "5555:5555"
