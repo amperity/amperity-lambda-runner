@@ -1,48 +1,27 @@
-import os, json
-
+import requests
+import sys
+sys.path.append("../")
 from amperity_runner import AmperityRunner
 
-import requests
 
-# TODO: These shouldn't be defined in the compose file. Need an easier way to configure env variables
-SOME_ENV_VAR=os.environ.get('SOME_ENV_VAR')
-
+def main_function(data, errors, url, args):
+    print("main_function data", data)
+    print("main_function args", args)
+    # res = requests.get(url)
+    print("errors from main_function", errors)
 
 def lambda_handler(event, context):
-    """
-    :param event: Event object containing information about the invoking service
-    :param context: Context object, passed to lambda at runtime, providing
-                    information about the function and runtime environment
-    """
+    url = event["data_url"]
+    amperity = AmperityRunner(payload = event, lambda_context = context, read_ndjson = False)
+    amperity.run(main_function, url, "hi")
 
-    if not SOME_ENV_VAR:
-        print('Configure your environment variables plz :)')
-        return
+payload = {
+    "data_url": "https://www.google.com",
+    "webhook_settings": {},
+    "callback_url": "https://www.google.com/",
+    "webhook_id": "webhook_id",
+    "access_token": "access_token"
+    }
+lambda_context = {"context": "hi"}
 
-    # Configure your session to your destination requirements here.
-    destination_url = 'http://destination_app:5005/mock/rudderstack'
-    sess = requests.Session()
-    sess.auth = (SOME_ENV_VAR, '')
-    sess.headers.update({'Content-Type': 'application/json'})
-
-    req = event['body']
-    payload = json.loads(req)
-
-    # There are more fields to configure for batch sizing, rate limiting, etc.
-    #   See amperity_runner.py if you want to override any of those values
-    runner = AmperityRunner(
-        payload,
-        context,
-        destination_url,
-        sess,
-    )
-
-    status = runner.start_job()
-
-    if status == 'finished':
-        return { 'statusCode': 200 }
-    elif status == 'timeout':
-        print('Kicking off another lambda')
-        return { 'statusCode': 300 }
-    else:
-        return { 'statusCode': 500 }
+lambda_handler(payload, lambda_context)
