@@ -32,13 +32,16 @@ Finally when you upload the zip of this lambda you will have to update 2 things.
 # Pull from customer-profiles tab in AWS NOT overview tab
 # NOTE - This could be passed in using 'settings' param or looked up using API methods
 CONNECT_DOMAIN='amazon-connect-amperity-acme'
-
+CONNECT_CLIENT = boto3.client(
+    'customer-profiles',
+    region_name='us-east-1',
+)
 
 def lambda_handler(event, context):
     """
     curl to trigger local test:
     curl -X POST 'http://localhost:5555/lambda/aws_connect' \
-        -H 'Content-Type: application/json' -d '{"data_url": "http://fake_s3:4566/test-bucket/{{ ndjson file }}", "settings": {}}'
+        -H 'Content-Type: application/json' -d '{"data_url": "http://fake_s3:4566/test-bucket/aws_connect_example.ndjson", "settings": {"truncate": "false"}}'
 
     Example record:
     {
@@ -63,15 +66,10 @@ def lambda_handler(event, context):
         'country': 'Country'
     }
 
-    connect_client = boto3.client(
-        'customer-profiles',
-        region_name='us-east-1',
-    )
     payload = json.loads(event['body'])
-    settings = json.loads(payload['settings'])
 
     # Settings field is always in the payload. Check if it it has a key/value of 'truncate': True
-    if settings.get('truncate'):
+    if payload['settings'].get('truncate'):
         truncate_connect_instance()
 
     # https://requests.readthedocs.io/en/latest/user/advanced/?highlight=body-content-workflow#body-content-workflow
@@ -95,7 +93,7 @@ def lambda_handler(event, context):
 
             row_val['Address'] = address_val
 
-            connect_client.create_profile(
+            CONNECT_CLIENT.create_profile(
                 DomainName=CONNECT_DOMAIN,
                 PartyType='INDIVIDUAL',
                 **row_val
@@ -137,7 +135,7 @@ def truncate_connect_instance():
     NOTE KeyName is not using the same keys as are in the create endpoint. See link below for valid keynames
     https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/customer-profiles.html#CustomerProfiles.Client.search_profiles
 
-    profiles = connect_client.search_profiles(
+    profiles = CONNECT_CLIENT.search_profiles(
         DomainName=CONNECT_DOMAIN,
         KeyName='_account',
         # Create a list of all AccountNumber values and pass it in here.
@@ -145,9 +143,10 @@ def truncate_connect_instance():
     )
 
     for profile in profiles:
-        connect_client.delete_profile(
+        CONNECT_CLIENT.delete_profile(
             DomainName=CONNECT_DOMAIN,
             ProfileId=profile.get('ProfileId')
         )
     """
+
     pass
