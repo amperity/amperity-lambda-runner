@@ -57,7 +57,7 @@ def rate_limit(f):
     return rate_limit_wrapper
 
 class AmperityRunner:
-    def __init__(self, payload, lambda_context, batch_size=3500, batch_offset=0, rate_limit=None, custom_mapping=None, read_as_ndjson=False):
+    def __init__(self, payload, lambda_context, batch_size=3500, batch_offset=0, rate_limit=None, custom_mapping=None):
         """
         :params
             payload : str
@@ -88,9 +88,8 @@ class AmperityRunner:
         self.num_requests = 0
         self.rate_limit_time_start = None
         self.custom_mapping = custom_mapping
-        self.read_as_ndjson = read_as_ndjson
 
-        self.tenant_id = payload.get("tenant_id")
+        self.tenant_id = "acme2-fullcdp-hackday"
 
         self.data_url = payload.get("data_url")
         self.webhook_settings = payload.get("webhook_settings")
@@ -121,23 +120,20 @@ class AmperityRunner:
 
         return res
     
-    def read_ndjson(self, data, batch_offset, batch_size):
-        """
-        The thought here is to allow the user to set
-        whether or not they read the NDJSON within the run function.
-        Some users may want to process the entire file instead of splitting into batches.
-
-        Is the idea here to actually batch because we're afraid of Lambda timing out? 
-        If we're afraid of Lambda timing out, does this mean we need to trigger another Lambda to run?
-        """
-        print("Reading NDJSON...")
-        data_array = data.decode('utf-8').splitlines()
-        batch = data_array[self.batch_offset: self.batch_offset + self.batch_size]
+    def read_ndjson_batch(self, data):
+        batch = data[self.batch_offset: self.batch_offset + self.batch_size]
         data_batch = [json.loads(d) for d in batch]
+
+        self.batch_offset += len(data_batch) if len(data_batch) < self.batch_size else self.batch_size
 
         return data_batch
     
     @rate_limit
+    def process_batch(self, data, callback):
+        res = callback(data)
+
+        return res
+
     def run(self, callback):
         errors = []
 
@@ -157,24 +153,23 @@ class AmperityRunner:
 
                 return download_failed_poll_response
 
-            return http_response(res.status_code, "ERROR", "Error downloading file.")
+            return http_response(downloaded_file.status_code, "ERROR", "Error downloading file.")
         
-        if self.read_as_ndjson == True:
-            data_batch = self.read_ndjson(downloaded_file.content, self.batch_offset, self.batch_size)
-            res = callback(data_batch)
+        content = downloaded_file.content
+        data = content.decode('utf-8').splitlines()
+        data_length = len(data)
 
-        else:
-            res = callback(downloaded_file.content)
-        
-        if res["statusCode"] != 200:
-            errors.append(res["body"])
-            end_error_poll_response = self.poll_for_status("failed", 0, errors)
+        while self.batch_offset < data_length:
+            curr_batch = self.read_ndjson_batch(data)
+            res = self.process_batch(curr_batch, callback)
 
-            if end_error_poll_response.status_code != 200:
+            if res["statusCode"] != 200:
+                errors.append(res["body"])
+                end_error_poll_response = self.poll_for_status("failed", 0, errors)
 
-                return http_response(end_error_poll_response.status_code, "ERROR", "Error polling for status.")
+                if end_error_poll_response.status_code != 200:
 
-            return res
+                    return http_response(end_error_poll_response.status_code, "ERROR", "Error polling for status.")
 
         end_poll_response = self.poll_for_status("succeeded", 1, errors)
 
