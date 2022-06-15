@@ -1,8 +1,9 @@
 import json
 import requests
+from response import http_response
 
 class AmperityRunner:
-    def __init__(self, payload, lambda_context, batch_size=3500, batch_offset=0, rate_limit=None, custom_mapping=None, read_ndjson = False):
+    def __init__(self, payload, lambda_context, batch_size=3500, batch_offset=0, rate_limit=None, custom_mapping=None, read_as_ndjson = False):
         """
         :params
             payload : str
@@ -16,10 +17,6 @@ class AmperityRunner:
                     }
             context : LambdaContext
                 The context object provided by lambda
-            destination_url : str
-                The url to send the data to
-            destination_session : requests.Session
-                An instance of a requests.Session class with all authorization configured.
             batch_size : int, optional
                 Int representing how many records should go in a single outbound request
             batch_offset : int, optional
@@ -37,6 +34,10 @@ class AmperityRunner:
         self.num_requests = 0
         self.rate_limit_time_start = None
         self.custom_mapping = custom_mapping
+        self.read_as_ndjson = read_as_ndjson
+
+        # TODO: Add Tenant ID to payload
+        self.tenant_id = 'acme2-fullcdp-hackday'
 
         self.data_url = payload.get("data_url")
         self.webhook_settings = payload.get("webhook_settings")
@@ -47,17 +48,14 @@ class AmperityRunner:
         self.status_url = self.callback_url + self.webhook_id
     
     def download_file(self, url):
-        print("Downloading file.")
+        print("Downloading file...", url)
         res = requests.get(url)
-        if res.status_code != 200:
-            print("Could not download file.")
-            return False
-        return res.content
+        return res
     
     def poll_for_status(self, state, progress = 0, errors = []):
         headers = {
             'Content-Type': 'application/json',
-            'X-Amperity-Tenant': 'noodles',
+            'X-Amperity-Tenant': self.tenant_id,
             'Authorization': f'Bearer {self.access_token}'
             }
         data = json.dumps({
@@ -65,8 +63,8 @@ class AmperityRunner:
             "progress": progress,
             "errors": errors})
         res = requests.put(self.status_url, headers = headers, data = data)
-        print("poll for status", res)
-        # add some error handling, or handle this response somehow?
+        print("Polling for status...", headers, data, res)
+        return res
     
     def read_ndjson(self, data, batch_offset, batch_size):
         """
@@ -76,28 +74,42 @@ class AmperityRunner:
         Some users may want to process the entire file instead of splitting
         into batches.
         """
+        print("Reading NDJSON...")
         data_array = data.decode('utf-8').splitlines()
         batch = data_array[self.batch_offset: self.batch_offset + self.batch_size]
         data_batch = [json.loads(d) for d in batch]
         return data_batch
     
-    def run(self, callback, *args):
+    def run(self, callback):
         errors = []
-        self.poll_for_status("running", 0, errors)
-        downloaded_file = self.download_file(self.data_url)
-        if not downloaded_file:
-            errors.append("Could not download file.")
-            self.poll_for_status("failed", 0, errors)
-            return False
-        
-        if self.read_ndjson == True:
-            data_batch = self.read_ndjson(downloaded_file, self.batch_offset, self.batch_size)
-            res = callback(data_batch, errors, *args)
-        else:
-            res = callback(downloaded_file, errors, *args)
 
-        if not res:
-            errors.append("Error running function.")
-            self.poll_for_status("failed", 0, errors)
-            return False
-        self.poll_for_status("succeeded", 1, errors)
+        start_response = self.poll_for_status("running", 0, errors)
+        if start_response.status_code != 200:
+            return http_response(start_response.status_code, "ERROR", "Error polling for status.")
+
+        downloaded_file = self.download_file(self.data_url)
+        if downloaded_file.status_code != 200:
+            errors.append(downloaded_file["body"])
+            download_failed_poll_response = self.poll_for_status("failed", 0, errors)
+            if download_failed_poll_response.status_code != 200:
+                return download_failed_poll_response
+            return http_response(res.status_code, "ERROR", "Error downloading file.")
+        
+        if self.read_as_ndjson == True:
+            data_batch = self.read_ndjson(downloaded_file.content, self.batch_offset, self.batch_size)
+            res = callback(data_batch)
+        else:
+            res = callback(downloaded_file.content)
+        
+        if res["statusCode"] != 200:
+            errors.append(res["body"])
+            end_error_poll_response = self.poll_for_status("failed", 0, errors)
+            if end_error_poll_response.status_code != 200:
+                return http_response(end_error_poll_response.status_code, "ERROR", "Error polling for status.")
+            return res
+
+        end_poll_response = self.poll_for_status("succeeded", 1, errors)
+        if end_poll_response.status_code != 200:
+            return http_response(end_poll_response.status_code, "ERROR", "Error polling for status.")
+
+        return res
