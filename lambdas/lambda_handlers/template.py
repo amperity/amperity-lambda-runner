@@ -10,7 +10,8 @@ def main(data):
 def lambda_handler(event, context):
     print(event)
     payload = json.loads(event["body"])
-    amperity = AmperityRunner(payload = payload, lambda_context = context, read_as_ndjson = True)
+    payload["tenant_id"] = 'acme2-fullcdp-hackday' # this will be added into the payload
+    amperity = AmperityRunner(payload=payload, lambda_context=context, read_as_ndjson=True)
     res = amperity.run(main)
    
     return res
