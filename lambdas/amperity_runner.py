@@ -70,9 +70,10 @@ class AmperityRunner:
         """
         The thought here is to allow the user to set
         whether or not they read the NDJSON within the run function.
+        Some users may want to process the entire file instead of splitting into batches.
 
-        Some users may want to process the entire file instead of splitting
-        into batches.
+        Is the idea here to actually batch because we're afraid of Lambda timing out? 
+        If we're afraid of Lambda timing out, does this mean we need to trigger another Lambda to run?
         """
         print("Reading NDJSON...")
         data_array = data.decode('utf-8').splitlines()
