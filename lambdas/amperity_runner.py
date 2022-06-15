@@ -3,7 +3,7 @@ import requests
 from response import http_response
 
 class AmperityRunner:
-    def __init__(self, payload, lambda_context, batch_size=3500, batch_offset=0, rate_limit=None, custom_mapping=None, read_as_ndjson = False):
+    def __init__(self, payload, lambda_context, batch_size = 3500, batch_offset = 0, rate_limit = None, custom_mapping = None, read_as_ndjson = False):
         """
         :params
             payload : str
