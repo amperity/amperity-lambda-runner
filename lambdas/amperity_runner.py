@@ -2,7 +2,16 @@ import functools, json, requests
 from datetime import datetime
 from time import sleep
 
-from response import http_response
+def http_response(status_code, status, message):
+    body = {
+        "status": status,
+        "message": message
+    }
+
+    return {
+        "statusCode": status_code,
+        "body": json.dumps(body)
+    }
 
 def rate_limit(f):
     """
@@ -57,14 +66,14 @@ def rate_limit(f):
     return rate_limit_wrapper
 
 class AmperityRunner:
-    def __init__(self, payload, lambda_context, batch_size=3500, batch_offset=0, rate_limit=None, custom_mapping=None):
+    def __init__(self, payload, lambda_context, batch_size=3500, batch_offset=0, rate_limit=None, custom_mapping=None, tenant_id=""):
         """
         :params
             payload : str
                 The body of the lambda event object
                 payload = {
                     "data_url": "", 
-                    "webhook_settings": {},
+                    "settings": {},
                     "callback_url": "",
                     "webhook_id": "",
                     "access_token": ""
@@ -89,15 +98,13 @@ class AmperityRunner:
         self.rate_limit_time_start = None
         self.custom_mapping = custom_mapping
 
-        self.tenant_id = "acme2-fullcdp-hackday"
+        self.tenant_id = tenant_id
 
         self.data_url = payload.get("data_url")
-        self.webhook_settings = payload.get("webhook_settings")
-        self.callback_url = payload.get("callback_url")
-        self.webhook_id = payload.get("webhook_id")
+        self.settings = payload.get("settings")
         self.access_token = payload.get("access_token")
 
-        self.status_url = self.callback_url + self.webhook_id
+        self.status_url = payload.get("callback_url") + payload.get("webhook_id")
     
     def download_file(self, url):
         print("Downloading file...", url)
@@ -129,7 +136,7 @@ class AmperityRunner:
         return data_batch
     
     @rate_limit
-    def process_batch(self, data, callback):
+    def invoke_handler_callback(self, data, callback):
         res = callback(data)
 
         return res
@@ -161,9 +168,9 @@ class AmperityRunner:
 
         while self.batch_offset < data_length:
             curr_batch = self.read_ndjson_batch(data)
-            res = self.process_batch(curr_batch, callback)
+            res = self.invoke_handler_callback(curr_batch, callback)
 
-            if res["statusCode"] != 200:
+            if res.get("statusCode") != 200:
                 errors.append(res["body"])
                 end_error_poll_response = self.poll_for_status("failed", 0, errors)
 

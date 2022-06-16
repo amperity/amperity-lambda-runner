@@ -1,7 +1,6 @@
 import json
 
-from amperity_runner import AmperityRunner
-from response import http_response
+from amperity_runner import AmperityRunner, http_response
 
 def main(data):
     # DO STUFF
