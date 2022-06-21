@@ -1,16 +1,21 @@
-import functools ,json
-
+import functools, json, requests
 from datetime import datetime
 from time import sleep
 
-import boto3
-import requests
+def http_response(status_code, status, message):
+    body = {
+        "status": status,
+        "message": message
+    }
 
+    return {
+        "statusCode": status_code,
+        "body": json.dumps(body)
+    }
 
 def rate_limit(f):
     """
     Decorator to handle our rate-limit/lambda timeout logic.
-
     First we check for the lambda_context timeout. Depending we either end this job 
         and kick off another lambda or continue to our post request to the destination api.
     In the destination request we keep track of requests per minute. If we exceed 
@@ -60,20 +65,21 @@ def rate_limit(f):
 
     return rate_limit_wrapper
 
-
 class AmperityRunner:
-    def __init__(self, payload, lambda_context, destination_url, destination_session, 
-                    batch_size=3500, batch_offset=0, rate_limit=None, custom_mapping=None):
+    def __init__(self, payload, lambda_context, batch_size=3500, batch_offset=0, rate_limit=None, custom_mapping=None, tenant_id=""):
         """
         :params
             payload : str
                 The body of the lambda event object
+                payload = {
+                    "data_url": "", 
+                    "settings": {},
+                    "callback_url": "",
+                    "webhook_id": "",
+                    "access_token": ""
+                    }
             context : LambdaContext
                 The context object provided by lambda
-            destination_url : str
-                The url to send the data to
-            destination_session : requests.Session
-                An instance of a requests.Session class with all authorization configured.
             batch_size : int, optional
                 Int representing how many records should go in a single outbound request
             batch_offset : int, optional
@@ -83,19 +89,8 @@ class AmperityRunner:
             custom_mapping : lambda, optional
                 Lambda function that does some operation on the shape of the data.
         """
-        self.data_url = payload.get('data_url')
-        self.audience_data = payload.get('webhook_settings', {})
-        callback_url = payload.get('callback_url')
-        webhook_id = payload.get('webhook_id')
-
-        self.status_url = callback_url + webhook_id
-        self.access_token = payload.get('access_token')
 
         self.lambda_context = lambda_context
-
-        self.destination_url = destination_url
-        self.destination_session = destination_session
-
         self.batch_size = batch_size
         self.batch_offset = batch_offset
         self.rate_limit = rate_limit
@@ -103,79 +98,90 @@ class AmperityRunner:
         self.rate_limit_time_start = None
         self.custom_mapping = custom_mapping
 
+        self.tenant_id = tenant_id
+
+        self.data_url = payload.get("data_url")
+        self.settings = payload.get("settings")
+        self.access_token = payload.get("access_token")
+
+        self.status_url = payload.get("callback_url") + payload.get("webhook_id")
     
-    def start_job(self):
-        resp = requests.get(self.data_url)
+    def download_file(self, url):
+        print("Downloading file...", url)
+        res = requests.get(url)
 
-        if resp.status_code != 200:
-            print('Bad download')
-            return 'error'
-
-        file_content = resp.content.decode('utf-8').splitlines()
-
-        print(f'Processing file from line: {self.batch_offset}')
-        
-        job_status = self._read_ndjson(file_content[self.batch_offset:])
-
-        # self._update_status()
-
-        return job_status
-
+        return res
     
-    def _read_ndjson(self, file_content):
-        file_length = len(file_content)
+    def poll_for_status(self, state, progress=0, errors=[]):
+        headers = {
+            'Content-Type': 'application/json',
+            'X-Amperity-Tenant': self.tenant_id,
+            'Authorization': f'Bearer {self.access_token}'
+            }
+        data = json.dumps({
+            "state": state,
+            "progress": progress,
+            "errors": errors})
+        res = requests.put(self.status_url, headers=headers, data=data)
+        print("Polling for status...", headers, data, res)
 
-        # TODO: lambda timeout logic goes here
-        while self.batch_offset < file_length:
-            batch = file_content[self.batch_offset: self.batch_offset + self.batch_size]
-            # TODO: error handling? We should be able to trust the format of the file...we write it
-            data_batch = [json.loads(d) for d in batch]
+        return res
+    
+    def read_ndjson_batch(self, data):
+        batch = data[self.batch_offset: self.batch_offset + self.batch_size]
+        data_batch = [json.loads(d) for d in batch]
 
-            self.batch_offset += len(data_batch) if len(data_batch) < self.batch_size else self.batch_size
+        self.batch_offset += len(data_batch) if len(data_batch) < self.batch_size else self.batch_size
 
-            # TODO: Reporting status to the callback url. How often do we want to do that?
-            batch_status = self._process_batch(data_batch)
-
-            print(f'Finished processing {self.batch_offset} records')
-
-            if batch_status == 'timeout':
-                return batch_status
-
-        return 'success'
-
-
+        return data_batch
+    
     @rate_limit
-    def _process_batch(self, batch_data):
-        if self.custom_mapping:
-            output_data = [self.custom_mapping(d) for d in batch_data]
+    def invoke_handler_callback(self, data, callback):
+        res = callback(data)
 
-        resp = self.destination_session.post(url=self.destination_url, data=json.dumps({'batch': output_data if output_data else batch_data}))
+        return res
 
-        if resp.status_code != 200:
-            print('POST failed: ')
-            print(resp.content)
+    def run(self, callback):
+        errors = []
 
+        start_response = self.poll_for_status("running", 0, errors)
 
-    def _update_status(self):
-        """
-        Testing this locally is blocked by docker networking for now. Use the below curl on local
-        curl -X PUT 'http://app.local.amperity.systems:8093/webhook/v1/< webhook-id >' \
-            -H 'X-Amperity-Tenant: planex' \
-            -H 'Authorization: Bearer < access-token >' \
-            -H 'Content-Type: application/json' -d '{"status": "succeeded"}'
+        if start_response.status_code != 200:
 
-        TODO: Remove hardcoded payload for data passed in from params
-        """
+            return http_response(start_response.status_code, "ERROR", "Error polling for status.")
 
-        resp = requests.put(
-            self.status_url,
-            headers={
-                'Content-Type': 'application/json',
-                'X-Amperity-Tenant': 'noodles',
-                'Authorization': f'Bearer {self.access_token}'
-            }, 
-            data=json.dumps({
-                "state": "succeeded",
-                "progress": 1,
-                "errors": ["no errors ever :)"]}))
-        print(resp)
+        downloaded_file = self.download_file(self.data_url)
+
+        if downloaded_file.status_code != 200:
+            errors.append("Failed to download file...")
+            download_failed_poll_response = self.poll_for_status("failed", 0, errors)
+
+            if download_failed_poll_response.status_code != 200:
+
+                return download_failed_poll_response
+
+            return http_response(downloaded_file.status_code, "ERROR", "Error downloading file.")
+        
+        content = downloaded_file.content
+        data = content.decode('utf-8').splitlines()
+        data_length = len(data)
+
+        while self.batch_offset < data_length:
+            curr_batch = self.read_ndjson_batch(data)
+            res = self.invoke_handler_callback(curr_batch, callback)
+
+            if res.get("statusCode") != 200:
+                errors.append(res["body"])
+                end_error_poll_response = self.poll_for_status("failed", 0, errors)
+
+                if end_error_poll_response.status_code != 200:
+
+                    return http_response(end_error_poll_response.status_code, "ERROR", "Error polling for status.")
+
+        end_poll_response = self.poll_for_status("succeeded", 1, errors)
+
+        if end_poll_response.status_code != 200:
+
+            return http_response(end_poll_response.status_code, "ERROR", "Error polling for status.")
+
+        return res
