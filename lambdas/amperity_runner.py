@@ -99,11 +99,11 @@ class AmperityRunner:
 
         self.tenant_id = tenant_id
 
-        self.data_url = payload.get("data_url")
-        self.settings = payload.get("settings")
-        self.access_token = payload.get("access_token")
+        self.data_url = payload.get('data_url')
+        self.settings = payload.get('settings')
+        self.access_token = payload.get('access_token')
 
-        self.status_url = payload.get("callback_url") + payload.get("webhook_id")
+        self.status_url = payload.get('callback_url') + payload.get('webhook_id')
         self.callback_session = requests.Session()
         self.callback_session.headers.update({
             'Content-Type': 'application/json',
@@ -112,33 +112,18 @@ class AmperityRunner:
         })
 
 
-    def download_file(self, url):
-        print("Downloading file...", url)
-        res = requests.get(url)
-
-        return res
-
-
-    def poll_for_status(self, state, progress=0, errors=[]):
+    def poll_for_status(self, state, progress=0, errors=[], reason=''):
         data = json.dumps({
-            "state": state,
-            "progress": progress,
-            "errors": errors
+            'state': state,
+            'progress': progress,
+            'errors': errors,
+            'reason': reason
         })
         res = self.callback_session.put(self.status_url, data=data)
 
-        print("Polling for status...", data, res)
+        print('Polling for status...', data, res)
 
         return res
-
-
-    def read_ndjson_batch(self, data):
-        batch = data[self.batch_offset: self.batch_offset + self.batch_size]
-        data_batch = [json.loads(d) for d in batch]
-
-        self.batch_offset += len(data_batch) if len(data_batch) < self.batch_size else self.batch_size
-
-        return data_batch
 
 
     def runner_logic(self):
@@ -148,37 +133,45 @@ class AmperityRunner:
     def run(self):
         errors = []
 
-        start_response = self.poll_for_status("running", 0, errors)
+        start_response = self.poll_for_status('running', 0, errors)
 
         # Do we want to kill a lambda if it can't report status to the app?
         if start_response.status_code != 200:
-            return http_response(start_response.status_code, "ERROR", "Error polling for status.")
+            return http_response(start_response.status_code, 'ERROR', 'Error polling for status.')
 
-        with requests.get(self.data_url) as resp:
+        with requests.get(self.data_url, stream=True) as resp:
             if resp.status_code != 200:
-                errors.append("Failed to download file...")
-                # If this call fails we could die quietly but we should be ok b/c our previous call succeeded
-                self.poll_for_status("failed", 0, errors)
+                self.poll_for_status('failed', 0, errors=[], reason='Failed to download file.')
 
                 return resp
 
             data_batch = []
 
-            for row in resp.iter_lines(decode_unicode=True):
+            for i, row in enumerate(resp.iter_lines(decode_unicode=True)):
+                # batch_offset should persist (be passed) b/w lambda runs if a timeout occurs.
+                # We cannot stream to an offset so skip iterations while we are catching up.
+                if i <= self.batch_offset:
+                    continue
+
                 data = json.loads(row)
 
-                if len(data_batch) < self.batch_size:
+                if len(data_batch) <= self.batch_size:
                     data_batch.append(data)
                 else:
                     self.runner_logic(data_batch)
                     data_batch = [data]
+                    self.batch_offset += self.batch_size
+                    # TODO - need to track offset as a percentage
+                    self.poll_for_status('running', .5, errors)
+
                 print(len(data_batch))
 
         if len(data_batch) > 0:
             self.runner_logic(data_batch)
 
-        end_poll_response = self.poll_for_status("succeeded", 1, errors)
+        end_poll_response = self.poll_for_status('succeeded', 1, errors)
 
+        # TODO - We should return more than just the request object from poll_for_status
         return end_poll_response
 
 
