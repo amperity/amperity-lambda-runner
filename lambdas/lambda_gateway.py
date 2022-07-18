@@ -52,7 +52,7 @@ def mock_lambda(name):
     lambda_module = import_module(f'lambda_handlers.{name}')
     lambda_status = lambda_module.lambda_handler(event, context)
 
-    return jsonify(status=lambda_status.get('statusCode'))
+    return jsonify(status=lambda_status.status_code)
 
 
 if __name__ == '__main__':

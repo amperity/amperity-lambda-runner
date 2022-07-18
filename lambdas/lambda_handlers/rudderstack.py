@@ -1,10 +1,10 @@
 import os, json
 
-from amperity_runner import AmperityRunner
+from amperity_runner import AmperityAPIRunner
 
 import requests
 
-# TODO: These shouldn't be defined in the compose file. Need an easier way to configure env variables
+
 RS_APP_NAME=os.environ.get('RS_APP_NAME')
 RS_WRITE_KEY=os.environ.get('RS_WRITE_KEY')
 
@@ -31,25 +31,20 @@ def lambda_handler(event, context):
             'userId': d['cust_id'] if 'cust_id' in d else 1234,
             'audience_name': payload.get('audience_name'),
             'type': 'track',
-            'event': 'Product Purchased'})
+            'event': 'Product Purchased'
+    })
 
-    runner = AmperityRunner(
+    runner = AmperityAPIRunner(
         payload,
         context,
-        destination_url,
-        sess,
-        # batch_size=3500,
-        # batch_offset=0,
-        # rate_limit=10000,
+        'test',
+        batch_size=5,
+        batch_offset=0,
+        destination_url=destination_url,
+        destination_session=sess,
         custom_mapping=add_customer_id,
     )
 
-    status = runner.start_job()
+    status = runner.run()
 
-    if status == 'finished':
-        return { 'statusCode': 200 }
-    elif status == 'timeout':
-        print('Kicking off another lambda')
-        return { 'statusCode': 300 }
-    else:
-        return { 'statusCode': 500 }
+    return status

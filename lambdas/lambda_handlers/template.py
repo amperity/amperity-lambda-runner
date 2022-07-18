@@ -1,16 +1,23 @@
 import json
 
-from amperity_runner import AmperityRunner, http_response
+from amperity_runner import AmperityAPIRunner, http_response
 
-def main(data):
-    # DO STUFF
-    return http_response(200, "SUCCESS", "Successfully ran function")
+
+"""
+curl -X POST 'http://localhost:5555/lambda/template' \
+    -H 'Content-Type: application/json' -d '{"data_url": "http://fake_s3:4566/test-bucket/sample.ndjson", "callback_url": "http://destination_app:5005/mock/poll/", "webhook_id": "wh-abcd12345"}'
+"""
+
 
 def lambda_handler(event, context):
     print(event)
     payload = json.loads(event["body"])
-    payload["tenant_id"] = 'acme2-fullcdp-hackday' # this will be added into the payload
-    amperity = AmperityRunner(payload=payload, lambda_context=context, read_as_ndjson=True)
-    res = amperity.run(main)
-   
+
+    amperity_runner = AmperityAPIRunner(
+        payload,
+        context,
+        'tenant-name'
+    )
+    res = amperity_runner.run()
+
     return res
