@@ -1,6 +1,11 @@
-import functools, json, requests
+import functools, json
+
 from datetime import datetime
 from time import sleep
+
+import boto3
+import requests
+
 
 def http_response(status_code, status, message):
     body = {
@@ -12,6 +17,7 @@ def http_response(status_code, status, message):
         "statusCode": status_code,
         "body": json.dumps(body)
     }
+
 
 def rate_limit(f):
     """
@@ -31,6 +37,7 @@ def rate_limit(f):
         # if self.lambda_context.get_remaining_time_in_millis() < 5000:
         #     print('Lambda timeout in less than 5 seconds.')
         #     resp = boto3.client('lambda').invoke(
+        # Can function name become a param from context
         #         FunctionName='phil-test',
         #         InvocationType='Event',
         #         Payload=json.dumps({'chain_lambda': False}))
@@ -65,8 +72,9 @@ def rate_limit(f):
 
     return rate_limit_wrapper
 
+
 class AmperityRunner:
-    def __init__(self, payload, lambda_context, batch_size=3500, batch_offset=0, rate_limit=None, custom_mapping=None, tenant_id=""):
+    def __init__(self, payload, lambda_context, tenant_id, batch_size=2000, batch_offset=0):
         """
         :params
             payload : str
@@ -77,26 +85,17 @@ class AmperityRunner:
                     "callback_url": "",
                     "webhook_id": "",
                     "access_token": ""
-                    }
+                }
             context : LambdaContext
                 The context object provided by lambda
             batch_size : int, optional
                 Int representing how many records should go in a single outbound request
             batch_offset : int, optional
                 If a single job cannot process all records this represents where the next job should pickup
-            rate_limit : int, optional
-                Integer denoting the requests per minute allowed by the destination.
-            custom_mapping : lambda, optional
-                Lambda function that does some operation on the shape of the data.
         """
-
         self.lambda_context = lambda_context
         self.batch_size = batch_size
         self.batch_offset = batch_offset
-        self.rate_limit = rate_limit
-        self.num_requests = 0
-        self.rate_limit_time_start = None
-        self.custom_mapping = custom_mapping
 
         self.tenant_id = tenant_id
 
@@ -105,28 +104,34 @@ class AmperityRunner:
         self.access_token = payload.get("access_token")
 
         self.status_url = payload.get("callback_url") + payload.get("webhook_id")
-    
+        self.callback_session = requests.Session()
+        self.callback_session.headers.update({
+            'Content-Type': 'application/json',
+            'X-Amperity-Tenant': self.tenant_id,
+            'Authorization': f'Bearer {self.access_token}'
+        })
+
+
     def download_file(self, url):
         print("Downloading file...", url)
         res = requests.get(url)
 
         return res
-    
+
+
     def poll_for_status(self, state, progress=0, errors=[]):
-        headers = {
-            'Content-Type': 'application/json',
-            'X-Amperity-Tenant': self.tenant_id,
-            'Authorization': f'Bearer {self.access_token}'
-            }
         data = json.dumps({
             "state": state,
             "progress": progress,
-            "errors": errors})
-        res = requests.put(self.status_url, headers=headers, data=data)
-        print("Polling for status...", headers, data, res)
+            "errors": errors
+        })
+        res = self.callback_session.put(self.status_url, data=data)
+
+        print("Polling for status...", data, res)
 
         return res
-    
+
+
     def read_ndjson_batch(self, data):
         batch = data[self.batch_offset: self.batch_offset + self.batch_size]
         data_batch = [json.loads(d) for d in batch]
@@ -134,54 +139,85 @@ class AmperityRunner:
         self.batch_offset += len(data_batch) if len(data_batch) < self.batch_size else self.batch_size
 
         return data_batch
-    
-    @rate_limit
-    def invoke_handler_callback(self, data, callback):
-        res = callback(data)
 
-        return res
 
-    def run(self, callback):
+    def runner_logic(self):
+        pass
+
+
+    def run(self):
         errors = []
 
         start_response = self.poll_for_status("running", 0, errors)
 
+        # Do we want to kill a lambda if it can't report status to the app?
         if start_response.status_code != 200:
-
             return http_response(start_response.status_code, "ERROR", "Error polling for status.")
 
-        downloaded_file = self.download_file(self.data_url)
+        with requests.get(self.data_url) as resp:
+            if resp.status_code != 200:
+                errors.append("Failed to download file...")
+                # If this call fails we could die quietly but we should be ok b/c our previous call succeeded
+                self.poll_for_status("failed", 0, errors)
 
-        if downloaded_file.status_code != 200:
-            errors.append("Failed to download file...")
-            download_failed_poll_response = self.poll_for_status("failed", 0, errors)
+                return resp
 
-            if download_failed_poll_response.status_code != 200:
+            data_batch = []
 
-                return download_failed_poll_response
+            for row in resp.iter_lines(decode_unicode=True):
+                data = json.loads(row)
 
-            return http_response(downloaded_file.status_code, "ERROR", "Error downloading file.")
-        
-        content = downloaded_file.content
-        data = content.decode('utf-8').splitlines()
-        data_length = len(data)
+                if len(data_batch) < self.batch_size:
+                    data_batch.append(data)
+                else:
+                    self.runner_logic(data_batch)
+                    data_batch = [data]
+                print(len(data_batch))
 
-        while self.batch_offset < data_length:
-            curr_batch = self.read_ndjson_batch(data)
-            res = self.invoke_handler_callback(curr_batch, callback)
-
-            if res.get("statusCode") != 200:
-                errors.append(res["body"])
-                end_error_poll_response = self.poll_for_status("failed", 0, errors)
-
-                if end_error_poll_response.status_code != 200:
-
-                    return http_response(end_error_poll_response.status_code, "ERROR", "Error polling for status.")
+        if len(data_batch) > 0:
+            self.runner_logic(data_batch)
 
         end_poll_response = self.poll_for_status("succeeded", 1, errors)
 
-        if end_poll_response.status_code != 200:
+        return end_poll_response
 
-            return http_response(end_poll_response.status_code, "ERROR", "Error polling for status.")
 
-        return res
+class AmperityAPIRunner(AmperityRunner):
+    def __init__(self, *args, destination_url=None, destination_session=None, rate_limit=None, custom_mapping=None, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.destination_url = destination_url
+        self.destination_session = destination_session
+        self.rate_limit = rate_limit
+        self.num_requests = 0
+        self.rate_limit_time_start = None
+        self.custom_mapping = custom_mapping
+
+    @rate_limit
+    def runner_logic(self, data):
+        if self.custom_mapping:
+            output_data = [self.custom_mapping(d) for d in data]
+
+        resp = self.destination_session.post(
+            url=self.destination_url,
+            data=json.dumps({'batch': output_data if output_data else data})
+        )
+
+        if resp.status_code != 200:
+            print('POST failed: ')
+            print(resp.content)
+
+
+class AmperityBotoRunner(AmperityRunner):
+    def __init__(self, *args, boto_client=None, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        if not boto_client:
+            raise NotImplementedError('Please supply a valid boto client')
+
+        self.boto_client = boto_client
+
+
+    def runner_logic(self, data):
+        raise NotImplementedError('Please implement your boto runnder logic.')
+
