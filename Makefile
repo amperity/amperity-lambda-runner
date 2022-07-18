@@ -16,10 +16,10 @@ logs:
 	${COMPOSE} logs --timestamps --tail=0 --follow
 
 lambda-logs:
-	${COMPOSE} logs --timestamps mock_gateway --follow
+	docker logs --timestamps lambda-mock-gateway --follow
 
 dest-logs:
-	${COMPOSE} logs --timestamps destination_app --follow
+	docker logs --timestamps lambda-destination-app --follow
 
 # ----- Testing -----
 

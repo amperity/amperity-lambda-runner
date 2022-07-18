@@ -104,7 +104,7 @@ Writing this here as an initial set of notes for how to use this repo to test a 
 1. Grab the data_url from the cloudwatch logs and paste into browser to download the file locally
 1. Move that file from downloads into test/fixtures ane run `make up`.
 1. Write logic using fakes3 file and test logic.
-1. Build and upload finished version of aws_connect.py (ie `make build filename=aws_connect.py`)
+1. Build and upload finished version of aws_connect.py (ie `make lambda-build filename=aws_connect.py`)
 1. Test a full run of Orchestration -> Lambda -> AWS Connect App
     - You'll probably need to bump the timeout on the lambda. 100 records takes ~10 seconds to complete.
 
@@ -140,7 +140,7 @@ How to curl a deployed lambda:
 ~~~bash
 curl -X POST -H 'x-api-key: {{ lambda gateway api key }}' '{{ lambda api gateway url }}' \
     -H '{"Content-Type": "application/json"}' \
-    -d '{ "label_name": "test label", "settings": {}, "data_url": "http://some-s3-bucket.example/filename" }' \
+    -d '{ "label_name": "test label", "settings": {}, "data_url": "http://some-s3-bucket.example/filename" }'
 ~~~
 
 
