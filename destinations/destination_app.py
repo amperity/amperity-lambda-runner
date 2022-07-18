@@ -25,5 +25,13 @@ def mock_rudderstack():
     return "Check destination_app logs"
 
 
+@app.route('/mock/poll/<id>', methods=['PUT'])
+def poll_for_status(id):
+    req = request.json
+    print(req)
+
+    return jsonify(message=f"received status for {id}", status=200)
+
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5005)

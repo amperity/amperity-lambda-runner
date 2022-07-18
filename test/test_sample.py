@@ -25,3 +25,12 @@ class TestLambdas:
             print(e)
             lambda_handler({} ,{})
             assert True
+
+    def test_catch_up_to_offset():
+        pass
+
+    def test_api_runner():
+        pass
+
+    def test_boto_runner():
+        pass
