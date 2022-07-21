@@ -16,13 +16,16 @@ def mock_rudderstack():
     req = request.json
     print(req)
 
+    if not req.get('batch'):
+        print("Invalid request. Data must be under the 'batch' key")
+        return jsonify(message="Invalid request. Data must be under the 'batch' key", status=400)
+
     for rec in req.get('batch'):
         if 'userId' not in rec:
-            print(rec)
-            # TODO return actual 400 w/ this message
-            return "Invalid request. Check destination_app logs"
-    
-    return "Check destination_app logs"
+            print(f"Invalid request. Data must be under the 'userId' key: {rec}")
+            return jsonify(message="Invalid request. Every record must have a 'userId' field", status=400)
+
+    return jsonify(message="Check destination_app logs", status=200)
 
 
 @app.route('/mock/poll/<id>', methods=['PUT'])

@@ -43,6 +43,7 @@ def lambda_handler(event, context):
         destination_url=destination_url,
         destination_session=sess,
         custom_mapping=add_customer_id,
+        data_key='batch',
     )
 
     status = runner.run()

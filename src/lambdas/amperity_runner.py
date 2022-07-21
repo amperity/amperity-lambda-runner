@@ -53,7 +53,6 @@ class AmperityRunner:
         data = json.dumps({
             'state': state,
             'progress': progress,
-            # NOTE - We aren't appending to this anywhere right now
             'errors': self.errors,
             'reason': reason
         })
@@ -78,13 +77,13 @@ class AmperityRunner:
         head_resp = requests.head(self.data_url)
         self.file_bytes = int(head_resp.headers.get('Content-Length'))
 
-        with requests.get(self.data_url, stream=True) as resp:
-            if resp.status_code != 200:
+        with requests.get(self.data_url, stream=True) as stream_resp:
+            if stream_resp.status_code != 200:
                 self.poll_for_status('failed', 0, reason='Failed to download file.')
 
-                return resp
+                return stream_resp
 
-            self.process_stream(resp)
+            self.process_stream(stream_resp)
 
         # TODO - Math doesn't add up on this last call. Hardcode or figure out math problem?
         end_poll_response = self.poll_for_status('succeeded', 1)
@@ -93,10 +92,10 @@ class AmperityRunner:
         return end_poll_response
 
 
-    def process_stream(self, resp_stream):
+    def process_stream(self, stream_resp):
         data_batch = []
 
-        for i, row in enumerate(resp_stream.iter_lines()):
+        for i, row in enumerate(stream_resp.iter_lines()):
             # batch_offset should persist (be passed) b/w lambda runs if a timeout occurs.
             # We cannot stream to an offset so skip iterations while we are catching up.
             if self.batch_offset and i < self.batch_offset:
@@ -140,13 +139,13 @@ class AmperityAPIRunner(AmperityRunner):
             url=self.destination_url,
             data=json.dumps({self.data_key: output_data})
         )
+        resp_content = json.loads(resp.text)
 
-        if resp.status_code != 200:
-            print('POST failed: ')
-            print(resp.content)
-            self.errors.append(resp.content)
+        if resp_content.get('status') != 200:
+            # NOTE - For now going with niave approach and just constantly appending to this.
+            #  This may end up breaking poll_for_status if we exceed length limit
+            self.errors.append(resp.text)
 
-        print(output_data)
         self.num_requests += len(output_data)
 
 
