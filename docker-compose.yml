@@ -36,7 +36,7 @@ services:
       - .:/code
     environment:
       - FLASK_APP=destination_app
-    command: python destinations/destination_app.py
+    command: python src/destinations/destination_app.py
     ports:
       - "5005:5005"
   

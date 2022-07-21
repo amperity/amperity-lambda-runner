@@ -9,9 +9,9 @@ echo "Installing dependencies"
 pip install requests -t ./build
 
 echo "Copying lambda logic"
-cp lambdas/amperity_runner.py ./build
+cp src/lambdas/amperity_runner.py ./build
 # TODO make this dynamic
-cp lambdas/lambda_handlers/$filename ./build/app.py
+cp src/lambdas/lambda_handlers/$filename ./build/app.py
 
 echo "Zipping contents"
 cd ./build

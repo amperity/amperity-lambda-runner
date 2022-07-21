@@ -17,9 +17,15 @@ TIMEOUT=os.environ.get('LAMBDA_TIMEOUT')
 
 
 class LambdaContext:
+    """
+    A mock lambda context instance. See link for full capabilities in a lambda.
+    https://docs.aws.amazon.com/lambda/latest/dg/python-context.html
+    """
     def __init__(self):
+        print(os.environ.get('LAMBDA_TIMEOUT'))
         self.start = datetime.now()
-        self.timeout = TIMEOUT if TIMEOUT else (1 * 60 * 1000)
+        self.timeout = int(TIMEOUT) if TIMEOUT else (1 * 60 * 1000)
+        self.function_name = 'fake_function_name'
 
     def get_remaining_time_in_millis(self):
         return self.timeout - ((datetime.now() - self.start).seconds * 1000)

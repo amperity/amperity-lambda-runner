@@ -133,7 +133,10 @@ The shape of the body in the request will have these fields
 How to curl mock lambda:
 ~~~bash
 curl -X POST 'http://localhost:5555/lambda/{{ lambda filename (no .py )}}' \
-    -H 'Content-Type: application/json' -d '{"data_url": "http://fake_s3:4566/test-bucket/sample.ndjson"}'
+    -H 'Content-Type: application/json' -d '{"data_url": "http://fake_s3:4566/test-bucket/sample.ndjson", "callback_url": "http://destination_app:5005/mock/poll/", "webhook_id": "wh-abcd12345"}'
+
+curl -X POST 'http://localhost:5555/lambda/rudderstack' \
+    -H 'Content-Type: application/json' -d '{"data_url": "http://fake_s3:4566/test-bucket/sample.ndjson", "callback_url": "http://destination_app:5005/mock/poll/", "webhook_id": "wh-abcd12345"}'
 ~~~
 
 How to curl a deployed lambda:
@@ -142,6 +145,19 @@ curl -X POST -H 'x-api-key: {{ lambda gateway api key }}' '{{ lambda api gateway
     -H '{"Content-Type": "application/json"}' \
     -d '{ "label_name": "test label", "settings": {}, "data_url": "http://some-s3-bucket.example/filename" }'
 ~~~
+
+
+## Testing
+
+We use [pytest](https://docs.pytest.org/en/7.1.x/getting-started.html) for our automated testing. The structure is straightforward and you can add to it by creating a new file in `test/`. 
+
+To run the full test suite use the make command: `make docker-test`
+If you'd like to run a specific test class use this make command: `make docker-test-class class_name=TestAmperityRunner`
+If you'd like to run a specific test function use this make command: `make docker-test-func class_name=TestAmperityRunner func_name=test_catch_up_to_offset`
+
+Below is a rant after several hours of annoyed debugging.
+
+I'm not super happy with the current implementation since it follows [pytests prefered layout](https://docs.pytest.org/en/7.1.x/explanation/goodpractices.html#choosing-a-test-layout-import-rules) for file structure yet without hardcoding the project directory in pytest.ini things fail. The underlying problem is somewhere in how we organize our docker environment and pytest. Pytest relies on `sys.path` for how it imports files while running tests and somehow the docker environment breaks this. I messed around with [changing import methods](https://docs.pytest.org/en/latest/explanation/pythonpath.html#invoking-pytest-versus-python-m-pytest), re-organizing the file structure to be under `src/`, and invoking tests more specifically, however, the only solution I got working is a `pytest.ini` at the root of the project and manually specifying the pythonpath that pytest should use. Again, not sure if this is a problem with the structure of pytest or a limitation that isn't well documented. If you run into a `ModuleNotFound` error when running a test try adding your specific directory to `pytest.ini`.
 
 
 ## Localstack Notes

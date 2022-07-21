@@ -26,6 +26,12 @@ dest-logs:
 docker-test:
 	${COMPOSE} run --rm test_app
 
+docker-test-class:
+	${COMPOSE} run --rm test_app pytest test/test_amperity_runner.py::${class_name}
+
+docker-test-func:
+	${COMPOSE} run --rm test_app pytest test/test_amperity_runner.py::${class_name}::${func_name}
+
 # ----- Start/Connect to Containers -----
 
 sh:
