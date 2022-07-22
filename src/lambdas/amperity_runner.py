@@ -47,7 +47,7 @@ class AmperityRunner:
         self.file_bytes = 0
         self.total_bytes = 0
 
-    def poll_for_status(self, state, progress=0, reason=''):
+    def poll_for_status(self, state, progress=0.0, reason=''):
         data = json.dumps({
             'state': state,
             'progress': progress,
@@ -114,12 +114,13 @@ class AmperityRunner:
 
 
 class AmperityAPIRunner(AmperityRunner):
-    def __init__(self, *args, destination_url=None, destination_session=None, rate_limit=0, custom_mapping=None, data_key='data', **kwargs):
+    def __init__(self, *args, destination_url=None, destination_session=None, req_per_min=0, custom_mapping=None,
+                 data_key='data', **kwargs):
         super().__init__(*args, **kwargs)
 
         self.destination_url = destination_url
         self.destination_session = destination_session
-        self.rate_limit = rate_limit
+        self.req_per_min = req_per_min
         self.custom_mapping = custom_mapping
         self.data_key = data_key
 

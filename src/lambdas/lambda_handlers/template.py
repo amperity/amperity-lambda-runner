@@ -1,6 +1,6 @@
 import json
 
-from lambdas.amperity_runner import AmperityAPIRunner, http_response
+from lambdas.amperity_runner import AmperityAPIRunner
 
 
 def lambda_handler(event, context):
