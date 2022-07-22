@@ -1,12 +1,13 @@
-import os, json
+import json
+import os
 
 from lambdas.amperity_runner import AmperityAPIRunner
 
 import requests
 
 
-RS_APP_NAME=os.environ.get('RS_APP_NAME')
-RS_WRITE_KEY=os.environ.get('RS_WRITE_KEY')
+RS_APP_NAME = os.environ.get('RS_APP_NAME')
+RS_WRITE_KEY = os.environ.get('RS_WRITE_KEY')
 
 
 def lambda_handler(event, context):
@@ -27,12 +28,13 @@ def lambda_handler(event, context):
 
     payload = json.loads(event['body'])
 
-    add_customer_id = lambda d: dict(d, **{
+    def add_customer_id(d):
+        return dict(d, **{
             'userId': d['cust_id'] if 'cust_id' in d else 1234,
             'audience_name': payload.get('audience_name'),
             'type': 'track',
             'event': 'Product Purchased'
-    })
+        })
 
     runner = AmperityAPIRunner(
         payload,

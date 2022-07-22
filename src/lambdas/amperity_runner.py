@@ -5,7 +5,6 @@ import requests
 from lambdas.helpers import http_response, rate_limit
 
 
-
 class AmperityRunner:
     def __init__(self, payload, lambda_context, tenant_id, batch_size=2000, batch_offset=0):
         """
@@ -25,7 +24,7 @@ class AmperityRunner:
         batch_size : int, optional
             Int representing how many records should go in a single outbound request
         batch_offset : int, optional
-            If a single job cannot process all records this represents where the next job should pickup
+            If a single job cannot process all records this represents where the next job should pick up
         """
         self.lambda_context = lambda_context
         self.batch_size = batch_size
@@ -48,7 +47,6 @@ class AmperityRunner:
         self.file_bytes = 0
         self.total_bytes = 0
 
-
     def poll_for_status(self, state, progress=0, reason=''):
         data = json.dumps({
             'state': state,
@@ -62,10 +60,8 @@ class AmperityRunner:
 
         return res
 
-
-    def runner_logic(self):
+    def runner_logic(self, data):
         pass
-
 
     def run(self):
         start_response = self.poll_for_status('running')
@@ -90,7 +86,6 @@ class AmperityRunner:
 
         # TODO - We should return more than just the request object from poll_for_status
         return end_poll_response
-
 
     def process_stream(self, stream_resp):
         data_batch = []
@@ -142,7 +137,7 @@ class AmperityAPIRunner(AmperityRunner):
         resp_content = json.loads(resp.text)
 
         if resp_content.get('status') != 200:
-            # NOTE - For now going with niave approach and just constantly appending to this.
+            # NOTE - For now going with naive approach and just constantly appending to this.
             #  This may end up breaking poll_for_status if we exceed length limit
             self.errors.append(resp.text)
 
@@ -158,7 +153,5 @@ class AmperityBotoRunner(AmperityRunner):
 
         self.boto_client = boto_client
 
-
     def runner_logic(self, data):
         raise NotImplementedError('Please implement your boto runnder logic.')
-

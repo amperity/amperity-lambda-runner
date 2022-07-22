@@ -45,11 +45,11 @@ class TestAmperityRunner:
         )
 
         expected_request = json.dumps({"data": [{
-            "col1":"val1",
-            "col2":"val2"
+            "col1": "val1",
+            "col2": "val2"
         }, {
-            "col1":"val3",
-            "col2":"val4"
+            "col1": "val3",
+            "col2": "val4"
         }]})
         expected_poll_status = '{"state": "succeeded", "progress": 1, "errors": [], "reason": ""}'
 
@@ -100,8 +100,8 @@ class TestAmperityRunner:
         )
 
         expected_request = json.dumps({"data": [{
-            "col1":"val3",
-            "col2":"val4"
+            "col1": "val3",
+            "col2": "val4"
         }]})
         expected_poll_status = '{"state": "succeeded", "progress": 1, "errors": [], "reason": ""}'
 
@@ -175,11 +175,12 @@ class TestAmperityAPIRunner:
         mock_callback = requests_mock.put('https://fake-callback.example/fake123')
         mock_destination = requests_mock.post(destination_url, text='{"status":200}')
 
-        add_customer_id = lambda d: dict(d, **{
-            'userId': d['cust_id'] if 'cust_id' in d else 1234,
-            'type': 'track',
-            'event': 'Product Purchased'
-        })
+        def add_customer_id(d):
+            return dict(d, **{
+                'userId': d['cust_id'] if 'cust_id' in d else 1234,
+                'type': 'track',
+                'event': 'Product Purchased'
+            })
 
         test_runner = AmperityAPIRunner(
             mock_event,
@@ -191,14 +192,14 @@ class TestAmperityAPIRunner:
         )
 
         expected_request = json.dumps({"data": [{
-            "col1":"val1",
-            "col2":"val2",
+            "col1": "val1",
+            "col2": "val2",
             "userId": 1234,
             "type": "track",
             "event": "Product Purchased"
         }, {
-            "col1":"val3",
-            "col2":"val4",
+            "col1": "val3",
+            "col2": "val4",
             "userId": 1234,
             "type": "track",
             "event": "Product Purchased"
@@ -230,11 +231,11 @@ class TestAmperityAPIRunner:
         )
 
         expected_request = json.dumps({"batch": [{
-            "col1":"val1",
-            "col2":"val2"
+            "col1": "val1",
+            "col2": "val2"
         }, {
-            "col1":"val3",
-            "col2":"val4"
+            "col1": "val3",
+            "col2": "val4"
         }]})
         expected_poll_status = '{"state": "succeeded", "progress": 1, "errors": [], "reason": ""}'
 
@@ -262,13 +263,14 @@ class TestAmperityAPIRunner:
         )
 
         expected_request = json.dumps({"data": [{
-            "col1":"val1",
-            "col2":"val2"
+            "col1": "val1",
+            "col2": "val2"
         }, {
-            "col1":"val3",
-            "col2":"val4"
+            "col1": "val3",
+            "col2": "val4"
         }]})
-        expected_poll_status = '{"state": "succeeded", "progress": 1, "errors": ["{\\"status\\":400, \\"message\\":\\"error message\\"}"], "reason": ""}'
+        expected_poll_status = '{"state": "succeeded", "progress": 1, ' \
+                               '"errors": ["{\\"status\\":400, \\"message\\":\\"error message\\"}"], "reason": ""}'
 
         test_runner.run()
 

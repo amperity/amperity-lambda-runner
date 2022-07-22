@@ -32,6 +32,9 @@ docker-test-class:
 docker-test-func:
 	${COMPOSE} run --rm test_app pytest test/test_amperity_runner.py::${class_name}::${func_name}
 
+docker-type:
+	${COMPOSE} run --rm test_app pycodestyle --max-line-length=140 src/ test/
+
 # ----- Start/Connect to Containers -----
 
 sh:

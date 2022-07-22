@@ -22,17 +22,17 @@ def lambda_handler(event, context):
 
     file_content = resp.content.decode('utf-8').splitlines()
     print(file_content[0])
-    
+
     report_url = payload.get('callback_url') + payload.get('webhook_id')
     auth_str = f"Bearer {payload.get('access_token')}"
-    
+
     resp = requests.put(
         report_url,
         headers={
             'Content-Type': 'application/json',
             'X-Amperity-Tenant': 'noodles',
             'Authorization': auth_str
-        }, 
+        },
         data=json.dumps({
             "state": "succeeded",
             "progress": 1,
@@ -42,5 +42,5 @@ def lambda_handler(event, context):
 
     print(resp.status_code)
     print(resp.content)
-    
-    return { 'statusCode': 200 }
+
+    return {'statusCode': 200}

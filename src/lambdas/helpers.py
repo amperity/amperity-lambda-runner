@@ -22,9 +22,9 @@ def http_response(status_code, status, message):
 def rate_limit(f):
     """
     Decorator to handle our rate-limit/lambda timeout logic.
-    First we check for the lambda_context timeout. Depending we either end this job 
+    First we check for the lambda_context timeout. Depending we either end this job
         and kick off another lambda or continue to our post request to the destination api.
-    In the destination request we keep track of requests per minute. If we exceed 
+    In the destination request we keep track of requests per minute. If we exceed
         the requests allowed per minute we pause the remaining time in the minute.
     """
     @functools.wraps(f)
