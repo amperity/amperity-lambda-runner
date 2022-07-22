@@ -2,7 +2,7 @@ import json
 
 import requests
 
-from helpers import http_response, rate_limit
+from lambdas.helpers import http_response, rate_limit
 
 
 

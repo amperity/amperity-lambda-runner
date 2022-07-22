@@ -1,4 +1,4 @@
-import os, json
+import sys, os, json
 
 from datetime import datetime
 from importlib import import_module
@@ -55,7 +55,7 @@ def mock_lambda(name):
     context = LambdaContext()
     event = {'body': json.dumps(req)}
 
-    lambda_module = import_module(f'lambda_handlers.{name}')
+    lambda_module = import_module(f'lambdas.lambda_handlers.{name}')
     lambda_status = lambda_module.lambda_handler(event, context)
 
     return jsonify(status=lambda_status.status_code)

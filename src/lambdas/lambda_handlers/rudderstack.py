@@ -1,6 +1,6 @@
 import os, json
 
-from amperity_runner import AmperityAPIRunner
+from lambdas.amperity_runner import AmperityAPIRunner
 
 import requests
 
@@ -20,7 +20,7 @@ def lambda_handler(event, context):
         print('Configure your environment variables plz :)')
         return
 
-    destination_url = 'http://destination_app:5005/mock/rudderstack'
+    destination_url = 'http://api_destination:5005/mock/rudderstack'
     sess = requests.Session()
     sess.auth = (RS_WRITE_KEY, '')
     sess.headers.update({'Content-Type': 'application/json'})

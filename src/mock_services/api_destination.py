@@ -25,7 +25,7 @@ def mock_rudderstack():
             print(f"Invalid request. Data must be under the 'userId' key: {rec}")
             return jsonify(message="Invalid request. Every record must have a 'userId' field", status=400)
 
-    return jsonify(message="Check destination_app logs", status=200)
+    return jsonify(message="Check api_destination logs", status=200)
 
 
 @app.route('/mock/poll/<id>', methods=['PUT'])

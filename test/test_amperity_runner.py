@@ -4,8 +4,8 @@ import unittest.mock
 import pytest
 import requests
 
-from src.lambdas.amperity_runner import AmperityRunner, AmperityAPIRunner, AmperityBotoRunner
-from src.lambdas.lambda_gateway import LambdaContext
+from lambdas.amperity_runner import AmperityRunner, AmperityAPIRunner, AmperityBotoRunner
+from mock_services.lambda_gateway import LambdaContext
 
 
 mock_event = {
@@ -119,7 +119,7 @@ class TestAmperityRunner:
 
 
 class TestAmperityAPIRunner:
-    @unittest.mock.patch('helpers.sleep')
+    @unittest.mock.patch('lambdas.helpers.sleep')
     def test_rate_limit(self, sleep_mock, requests_mock):
         mock_head = requests_mock.head('https://fake-data.example/', headers=mock_headers)
         mock_data = requests_mock.get('https://fake-data.example/', text=mock_ndjson)

@@ -2,7 +2,7 @@ FROM python:3-slim-bullseye
 
 # https://stackoverflow.com/questions/59812009/what-is-the-use-of-pythonunbuffered-in-docker-file
 ENV PYTHONUNBUFFERED=1
-ENV PYTHONPATH /code
+ENV PYTHONPATH /code/src
 
 WORKDIR /code
 
@@ -19,6 +19,4 @@ COPY util/docker/requirements.txt /util/docker/requirements.txt
 
 RUN pip install -r /util/docker/requirements.txt
 
-# CMD ["flask", "run"]
-# CMD ["python", "destination_app.py"]
 CMD ["/bin/bash"]

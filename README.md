@@ -9,7 +9,7 @@ More notes and refinement coming soon!
 There's a good amount of stuff surrounding the lambda logic in this repo. Here's how to read what we have:
 
 - `build/` The directory were your .zip'd lambda will go once you build it.
-- `destinations/` A dummy flask app that is there to help with local development. All it does is log what it is sent and whatever validation you want to test.
+- `mock_services/` A dummy flask app that is there to help with local development. All it does is log what it is sent and whatever validation you want to test.
 - `lambdas/` The "core" part of this app. 
     - `lambdas/lambda_gateway.py` Is a flask app that acts as a mock lambda gateway trigger. It mimics the lambda context for your testing needs.
     - `lambdas/amperity_runner.py` The lambda logic written by Amperity devs to handle, hopefully, most of the logic for your lambda.
@@ -19,7 +19,7 @@ There's a good amount of stuff surrounding the lambda logic in this repo. Here's
 - `util/` Where all the local development scripts, tools, etc live
 - `docker-compose.yml` Where we define our local containers. 
     - `lambda_gateway` Our mock gateway container and entrypoint for the local environment
-    - `destination_app` The debugging app
+    - `api_destination` The debugging app
     - `fake_s3` A mock local S3 environment that holds file(s) for testing.
 - `Makefile` Easier to use commands for local development
 
@@ -122,9 +122,9 @@ The shape of the body in the request will have these fields
     // Everything below is only necessary if you are testing status logic in the amperity system
     
     // Token used to authorize the request with amperity API
-    "access_token": "2:SbHdltrCSX2zbMZrutK4lw:e43c14cc893309e28a0bbd94d06fb44138cc3383492b00de548a7fc437aa3280",
+    "access_token": "2:somevarchar:anothervarchar",
     // Identifier for the specific webhook job you are currently processing
-    "webhook_id": "wh-9tftMuJD7qnjuH6MvPUcbR",
+    "webhook_id": "wh-somevarchar",
     // The endpoint to send the status request to
     "callback_url": "https://app.amperity.com/webhook/v1/"
 }
@@ -133,10 +133,7 @@ The shape of the body in the request will have these fields
 How to curl mock lambda:
 ~~~bash
 curl -X POST 'http://localhost:5555/lambda/{{ lambda filename (no .py )}}' \
-    -H 'Content-Type: application/json' -d '{"data_url": "http://fake_s3:4566/test-bucket/sample.ndjson", "callback_url": "http://destination_app:5005/mock/poll/", "webhook_id": "wh-abcd12345"}'
-
-curl -X POST 'http://localhost:5555/lambda/rudderstack' \
-    -H 'Content-Type: application/json' -d '{"data_url": "http://fake_s3:4566/test-bucket/sample.ndjson", "callback_url": "http://destination_app:5005/mock/poll/", "webhook_id": "wh-abcd12345"}'
+    -H 'Content-Type: application/json' -d '{"data_url": "http://fake_s3:4566/test-bucket/sample.ndjson", "callback_url": "http://api_destination:5005/mock/poll/", "webhook_id": "wh-abcd12345"}'
 ~~~
 
 How to curl a deployed lambda:

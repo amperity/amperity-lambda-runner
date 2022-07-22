@@ -52,7 +52,7 @@ restart-lambda:
 	${COMPOSE} restart lambda_gateway
 
 restart-dest:
-	${COMPOSE} restart destination_app
+	${COMPOSE} restart api_destination
 
 # ----- Build Commands -----
 
