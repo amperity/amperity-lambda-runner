@@ -6,7 +6,7 @@ from lambdas.helpers import http_response, rate_limit
 
 
 class AmperityRunner:
-    def __init__(self, payload, lambda_context, tenant_id, batch_size=2000, batch_offset=0):
+    def __init__(self, payload, lambda_context, tenant_id, batch_size=500, batch_offset=0):
         """
         payload : dict
             The body of the lambda event object
@@ -84,7 +84,6 @@ class AmperityRunner:
         # TODO - Math doesn't add up on this last call. Hardcode or figure out math problem?
         end_poll_response = self.poll_for_status('succeeded', 1)
 
-        # TODO - We should return more than just the request object from poll_for_status
         return end_poll_response
 
     def process_stream(self, stream_resp):
@@ -103,6 +102,7 @@ class AmperityRunner:
             if len(data_batch) < self.batch_size:
                 data_batch.append(data)
             else:
+                # Do we need to add this last record to the batch?
                 self.runner_logic(data_batch)
                 data_batch = [data]
                 self.batch_offset += self.batch_size
@@ -116,6 +116,20 @@ class AmperityRunner:
 class AmperityAPIRunner(AmperityRunner):
     def __init__(self, *args, destination_url=None, destination_session=None, req_per_min=0, custom_mapping=None,
                  data_key='data', **kwargs):
+        """
+        Extension of the base AmperityRunner class designed to easily send data to an API endpoint.
+
+        destination_url : str
+            The endpoint the runner will send data to.
+        destination_session : str
+            A configured requests Session instance. It should have auth and headers already defined
+        req_per_min : int, optional
+            Integer to limit requests to the endpoint if it has a limit on requests per minute.
+        custom_mapping : func, optional
+            A custom function that does some data manipulation. It should return a dict
+        data_key : str, optional
+            If your endpoint has a specific key that data needs to stored in.
+        """
         super().__init__(*args, **kwargs)
 
         self.destination_url = destination_url
@@ -147,6 +161,12 @@ class AmperityAPIRunner(AmperityRunner):
 
 class AmperityBotoRunner(AmperityRunner):
     def __init__(self, *args, boto_client=None, **kwargs):
+        """
+        Extension of the base AmperityRunner class designed for AWS services.
+
+        boto_client : boto3.client
+            A valid boto3 Session.Client instance.
+        """
         super().__init__(*args, **kwargs)
 
         if not boto_client:
