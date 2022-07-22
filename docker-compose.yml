@@ -12,7 +12,7 @@ services:
     ports:
       - "5555:5555"
     depends_on:
-      - destination_app
+      - api_destination
       - fake_s3
 
   fake_s3:
@@ -29,14 +29,14 @@ services:
     ports:
       - "4563-4599:4563-4599"
 
-  destination_app:
+  api_destination:
     image: python_env
     container_name: lambda-destination-app
     volumes:
       - .:/code
     environment:
-      - FLASK_APP=destination_app
-    command: python destinations/destination_app.py
+      - FLASK_APP=api_destination
+    command: python src/mock_services/api_destination.py
     ports:
       - "5005:5005"
   

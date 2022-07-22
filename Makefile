@@ -16,15 +16,24 @@ logs:
 	${COMPOSE} logs --timestamps --tail=0 --follow
 
 lambda-logs:
-	${COMPOSE} logs --timestamps mock_gateway --follow
+	docker logs --timestamps lambda-mock-gateway --follow
 
 dest-logs:
-	${COMPOSE} logs --timestamps destination_app --follow
+	docker logs --timestamps lambda-destination-app --follow
 
 # ----- Testing -----
 
 docker-test:
 	${COMPOSE} run --rm test_app
+
+docker-test-class:
+	${COMPOSE} run --rm test_app pytest test/test_amperity_runner.py::${class_name}
+
+docker-test-func:
+	${COMPOSE} run --rm test_app pytest test/test_amperity_runner.py::${class_name}::${func_name}
+
+docker-type:
+	${COMPOSE} run --rm test_app pycodestyle --max-line-length=140 src/ test/
 
 # ----- Start/Connect to Containers -----
 
@@ -46,7 +55,7 @@ restart-lambda:
 	${COMPOSE} restart lambda_gateway
 
 restart-dest:
-	${COMPOSE} restart destination_app
+	${COMPOSE} restart api_destination
 
 # ----- Build Commands -----
 

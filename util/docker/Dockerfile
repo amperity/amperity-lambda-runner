@@ -1,11 +1,13 @@
 FROM python:3-slim-bullseye
 
-RUN ls
-
 # https://stackoverflow.com/questions/59812009/what-is-the-use-of-pythonunbuffered-in-docker-file
 ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH /code/src
 
 WORKDIR /code
+
+# Can this become only the folder not the whole repo
+COPY . /code/
 
 RUN apt-get update && apt-get install -y \
     # helpful packages.
@@ -17,9 +19,4 @@ COPY util/docker/requirements.txt /util/docker/requirements.txt
 
 RUN pip install -r /util/docker/requirements.txt
 
-# Can this become only the folder not the whole repo
-COPY . /code/
-
-# CMD ["flask", "run"]
-# CMD ["python", "destination_app.py"]
 CMD ["/bin/bash"]
