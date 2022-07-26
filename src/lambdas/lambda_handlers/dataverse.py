@@ -30,17 +30,11 @@ def authorize_msal():
 
     return access_token
 
-def fetch_columns(single_table_name, access_token):
-    headers = {
-        "Accept": "application/json",
-        "Content-type": "application/json; charset=utf-8",
-        "Prefer": "return=representation",
-        "Authorization": "Bearer " + access_token
-        }
+def fetch_columns(single_table_name, session):
 
     url = f"https://{ORG_ID}.api.{ORG_REGION}.dynamics.com/api/data/v9.2/EntityDefinitions(LogicalName='{single_table_name}')/Attributes"
 
-    res = requests.get(url, headers=headers)
+    res = session.get(url)
 
     if res.status_code == 200:
         items = res.json()
@@ -48,9 +42,6 @@ def fetch_columns(single_table_name, access_token):
         columns = set(map(lambda i: i["LogicalName"], values))
 
         return columns 
-
-def dataverse_mapping(data, columns):
-    return {k: data[k] for k in columns if k in data}
 
 def lambda_handler(event, context):
     print(event)
@@ -71,10 +62,28 @@ def lambda_handler(event, context):
         
     sess.headers.update(headers)
 
+    cols = fetch_columns("cr812_customer", sess)
+    print(cols)
+
+    def dataverse_mapping(data):
+        # Removes columns from the data that don't exist in the schema
+        return {k: data[k] for k in cols if k in data}
+
     table_name = "cr812_customers"
     destination_url = f"https://{ORG_ID}.api.{ORG_REGION}.dynamics.com/api/data/v9.2/{table_name}"
 
-    amperity_runner = AmperityAPIRunner(payload, context, 'tenant-name', destination_url=None, destination_session=None)
+    amperity_runner = AmperityAPIRunner(
+        payload, 
+        context, 
+        'acme2-fullcdp-hackday', 
+        destination_url=destination_url, 
+        destination_session=sess, 
+        custom_mapping=dataverse_mapping
+        )
+
     res = amperity_runner.run()
 
     return res
+
+# curl -X POST 'http://localhost:5555/lambda/dataverse' \
+#     -H 'Content-Type: application/json' -d '{"data_url": "http://fake_s3:4566/test-bucket/dataverse.ndjson", "callback_url": "http://api_destination:5005/mock/poll/", "webhook_id": "wh-abcd12345"}'    
