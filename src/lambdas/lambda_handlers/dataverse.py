@@ -3,6 +3,7 @@ import logging
 import msal
 import os
 import requests
+import uuid
 
 from lambdas.amperity_runner import AmperityAPIRunner
 
@@ -33,6 +34,7 @@ def authorize_msal():
 def fetch_columns(single_table_name, session):
 
     url = f"https://{ORG_ID}.api.{ORG_REGION}.dynamics.com/api/data/v9.2/EntityDefinitions(LogicalName='{single_table_name}')/Attributes"
+    print("Fetching", url)
 
     res = session.get(url)
 
@@ -43,10 +45,34 @@ def fetch_columns(single_table_name, session):
 
         return columns 
 
+def format_bulk_creation(batch_id, changeset_id, destination_url, data, cols):
+    output = f"--batch_{batch_id}\n"
+    output += f"Content-Type: multipart/mixed;boundary=changeset_{changeset_id}\n\n"
+                
+    for i, item in enumerate(data):
+        formatted_item = {k: item[k] for k in cols if k in item}
+        output += f"--changeset_{changeset_id}\n"
+        output += "Content-Type: application/http\n"
+        output += "Content-Transfer-Encoding: binary\n"
+        output += "Content-ID: " + str(i) + "\n\n"
+        output += f"POST {destination_url} HTTP/1.1\n"
+        output += "Content-Type: application/json\n\n"
+        output += str(formatted_item) + "\n\n"
+
+    output += f"--changeset_{changeset_id}--\n"
+    output += f"--batch_{batch_id}--"
+    return output
+
 def lambda_handler(event, context):
     print(event)
     payload = json.loads(event['body']) if type(event['body']) == str else event['body']
     access_token = authorize_msal()
+
+    singular_table_name = "cr812_customer"
+    plural_table_name = "cr812_customers"
+
+    batch_url = f"https://{ORG_ID}.api.{ORG_REGION}.dynamics.com/api/data/v9.2/$batch"
+    destination_url = f"https://{ORG_ID}.api.{ORG_REGION}.dynamics.com/api/data/v9.2/{plural_table_name}"    
 
     if not access_token:
         print("Unable to retrieve access token.")
@@ -55,28 +81,28 @@ def lambda_handler(event, context):
     sess = requests.Session()
     headers = {
         "Accept": "application/json",
-        "Content-type": "application/json; charset=utf-8",
+        "Content-Type": "application/json; charset=utf-8",
         "Prefer": "return=representation",
         "Authorization": "Bearer " + access_token
         }
         
     sess.headers.update(headers)
 
-    cols = fetch_columns("cr812_customer", sess)
-    print(cols)
+    cols = fetch_columns(singular_table_name, sess)
+
+    batch_id = str(uuid.uuid4())
+    changeset_id = str(uuid.uuid4())
+    sess.headers.update({"Content-Type": f"multipart/mixed;boundary=batch_{batch_id}"})
 
     def dataverse_mapping(data):
-        # Removes columns from the data that don't exist in the schema
-        return {k: data[k] for k in cols if k in data}
-
-    table_name = "cr812_customers"
-    destination_url = f"https://{ORG_ID}.api.{ORG_REGION}.dynamics.com/api/data/v9.2/{table_name}"
+        return format_bulk_creation(batch_id, changeset_id, destination_url, data, cols)
+    
 
     amperity_runner = AmperityAPIRunner(
         payload, 
         context, 
         'acme2-fullcdp-hackday', 
-        destination_url=destination_url, 
+        destination_url=batch_url,
         destination_session=sess, 
         custom_mapping=dataverse_mapping
         )
@@ -84,6 +110,8 @@ def lambda_handler(event, context):
     res = amperity_runner.run()
 
     return res
-
-# curl -X POST 'http://localhost:5555/lambda/dataverse' \
-#     -H 'Content-Type: application/json' -d '{"data_url": "http://fake_s3:4566/test-bucket/dataverse.ndjson", "callback_url": "http://api_destination:5005/mock/poll/", "webhook_id": "wh-abcd12345"}'    
+    
+"""
+curl -X POST 'http://localhost:5555/lambda/dataverse' \
+    -H 'Content-Type: application/json' -d '{"data_url": "http://fake_s3:4566/test-bucket/dataverse.ndjson", "callback_url": "http://api_destination:5005/mock/poll/", "webhook_id": "wh-abcd12345"}'    
+"""    
