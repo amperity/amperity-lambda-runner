@@ -27,7 +27,7 @@ When working locally there are several apps that are stood up. First is an API g
 We utilize `Make` to handle all the local development commands. Feel free to read that file to see everything at your disposal but below are the commands needed to get up and running quick.
 
 1. `make docker-build` builds the custom python image we use in this repo.
-1. Add any environment variables your lambda will need to `.env`.
+1. Optional: Add any environment variables your lambda will need to `.env`.
     - This file *is* tracked by git so make sure to remove any actual secrets before you commit.
 1. `make up` brings up the 3 containers in the `docker-compose.yml` file.
     - You only need two of them (mock_gateway and fakes3) for regular development.
