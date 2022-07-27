@@ -133,7 +133,7 @@ class TestAmperityAPIRunner:
             destination_url=destination_url,
             destination_session=destination_sess,
             batch_size=1,
-            rate_limit=1,
+            req_per_min=1,
         )
         test_runner.run()
 
@@ -158,7 +158,7 @@ class TestAmperityAPIRunner:
             destination_url=destination_url,
             destination_session=destination_sess,
             batch_size=1,
-            rate_limit=1,
+            req_per_min=1,
         )
         test_runner.run()
 
