@@ -51,6 +51,8 @@ def format_bulk_creation(batch_id, changeset_id, destination_url, data, cols):
                 
     for i, item in enumerate(data):
         formatted_item = {k: item[k] for k in cols if k in item}
+        if not formatted_item:
+            continue
         output += f"--changeset_{changeset_id}\n"
         output += "Content-Type: application/http\n"
         output += "Content-Transfer-Encoding: binary\n"
