@@ -19,6 +19,7 @@ SCOPE = [f"https://{ORG_ID}.api.{ORG_REGION}.dynamics.com/.default"]
 SINGULAR_TABLE_NAME = "cr812_customer"
 PLURAL_TABLE_NAME = "cr812_customers"
 
+
 def authorize_msal():
     # https://github.com/AzureAD/microsoft-authentication-library-for-python/blob/dev/sample/confidential_client_secret_sample.py
     app = msal.ConfidentialClientApplication(CLIENT_ID, authority=AUTHORITY, client_credential=CLIENT_SECRET)
@@ -34,6 +35,7 @@ def authorize_msal():
 
     return access_token
 
+
 def fetch_columns(single_table_name, session):
 
     url = f"https://{ORG_ID}.api.{ORG_REGION}.dynamics.com/api/data/v9.2/EntityDefinitions(LogicalName='{single_table_name}')/Attributes"
@@ -45,12 +47,13 @@ def fetch_columns(single_table_name, session):
         values = items["value"]
         columns = set(map(lambda i: i["LogicalName"], values))
 
-        return columns 
+        return columns
+
 
 def format_bulk_creation(batch_id, changeset_id, destination_url, data, cols):
     output = f"--batch_{batch_id}\n"
     output += f"Content-Type: multipart/mixed;boundary=changeset_{changeset_id}\n\n"
-                
+
     for i, item in enumerate(data):
         formatted_item = {k: item[k] for k in cols if k in item}
         if not formatted_item:
@@ -66,6 +69,7 @@ def format_bulk_creation(batch_id, changeset_id, destination_url, data, cols):
     output += f"--changeset_{changeset_id}--\n"
     output += f"--batch_{batch_id}--"
     return output
+
 
 def lambda_handler(event, context):
     print(event)
@@ -83,7 +87,7 @@ def lambda_handler(event, context):
         "Prefer": "return=representation",
         "Authorization": "Bearer " + access_token
         }
-        
+
     sess.headers.update(headers)
 
     cols = fetch_columns(SINGULAR_TABLE_NAME, sess)
@@ -100,14 +104,13 @@ def lambda_handler(event, context):
 
     def dataverse_mapping(data):
         return format_bulk_creation(batch_id, changeset_id, destination_url, data, cols)
-    
 
     amperity_runner = AmperityAPIRunner(
-        payload, 
-        context, 
-        'acme2-fullcdp-hackday', 
+        payload,
+        context,
+        'acme2-fullcdp-hackday',
         destination_url=batch_url,
-        destination_session=sess, 
+        destination_session=sess,
         custom_mapping=dataverse_mapping
         )
 
@@ -116,8 +119,3 @@ def lambda_handler(event, context):
     return {
         "statusCode": res.status_code
     }
-    
-"""
-curl -X POST 'http://localhost:5555/lambda/dataverse' \
-    -H 'Content-Type: application/json' -d '{"data_url": "http://fake_s3:4566/test-bucket/dataverse.ndjson", "callback_url": "http://api_destination:5005/mock/poll/", "webhook_id": "wh-abcd12345"}'    
-"""    
