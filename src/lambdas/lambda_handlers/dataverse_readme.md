@@ -11,6 +11,14 @@ By using our Microsoft Dataverse connector, Amperity will send data to an API Ga
 - AWS API Gateway
 - Microsoft Dataverse table
 
+## Getting Started
+
+### Setup authentication
+1. In Azure Active Directory, go to [App Registrations](https://portal.azure.com/#view/Microsoft_AAD_IAM/ActiveDirectoryMenuBlade/~/RegisteredApps)
+2. Click "New Registration" , name your app, and leave everything else as default. Click "Register"
+3. On your new app's overview page, copy the "Application (client) ID" and "Directory (tenant) ID" to your environment variables.
+4. WIP...
+
 Set the following environment variables:
 - ORG_ID
 - ORG_REGION
