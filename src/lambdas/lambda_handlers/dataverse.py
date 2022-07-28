@@ -34,7 +34,6 @@ def authorize_msal():
 def fetch_columns(single_table_name, session):
 
     url = f"https://{ORG_ID}.api.{ORG_REGION}.dynamics.com/api/data/v9.2/EntityDefinitions(LogicalName='{single_table_name}')/Attributes"
-    print("Fetching", url)
 
     res = session.get(url)
 
@@ -91,6 +90,9 @@ def lambda_handler(event, context):
     sess.headers.update(headers)
 
     cols = fetch_columns(singular_table_name, sess)
+
+    if not cols:
+        return
 
     batch_id = str(uuid.uuid4())
     changeset_id = str(uuid.uuid4())
