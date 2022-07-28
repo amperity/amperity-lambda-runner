@@ -16,6 +16,9 @@ CLIENT_SECRET = os.getenv("CLIENT_SECRET")
 AUTHORITY = "https://login.microsoftonline.com/" + TENANT_ID
 SCOPE = [f"https://{ORG_ID}.api.{ORG_REGION}.dynamics.com/.default"]
 
+SINGULAR_TABLE_NAME = "cr812_customer"
+PLURAL_TABLE_NAME = "cr812_customers"
+
 def authorize_msal():
     # https://github.com/AzureAD/microsoft-authentication-library-for-python/blob/dev/sample/confidential_client_secret_sample.py
     app = msal.ConfidentialClientApplication(CLIENT_ID, authority=AUTHORITY, client_credential=CLIENT_SECRET)
@@ -69,11 +72,8 @@ def lambda_handler(event, context):
     payload = json.loads(event['body']) if type(event['body']) == str else event['body']
     access_token = authorize_msal()
 
-    singular_table_name = "cr812_customer"
-    plural_table_name = "cr812_customers"
-
     batch_url = f"https://{ORG_ID}.api.{ORG_REGION}.dynamics.com/api/data/v9.2/$batch"
-    destination_url = f"https://{ORG_ID}.api.{ORG_REGION}.dynamics.com/api/data/v9.2/{plural_table_name}"    
+    destination_url = f"https://{ORG_ID}.api.{ORG_REGION}.dynamics.com/api/data/v9.2/{PLURAL_TABLE_NAME}"    
 
     if not access_token:
         print("Unable to retrieve access token.")
@@ -89,7 +89,7 @@ def lambda_handler(event, context):
         
     sess.headers.update(headers)
 
-    cols = fetch_columns(singular_table_name, sess)
+    cols = fetch_columns(SINGULAR_TABLE_NAME, sess)
 
     if not cols:
         return
