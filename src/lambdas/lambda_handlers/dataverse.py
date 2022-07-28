@@ -113,7 +113,9 @@ def lambda_handler(event, context):
 
     res = amperity_runner.run()
 
-    return res
+    return {
+        "statusCode": res.status_code
+    }
     
 """
 curl -X POST 'http://localhost:5555/lambda/dataverse' \
