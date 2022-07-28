@@ -70,10 +70,7 @@ def format_bulk_creation(batch_id, changeset_id, destination_url, data, cols):
 def lambda_handler(event, context):
     print(event)
     payload = json.loads(event['body']) if type(event['body']) == str else event['body']
-    access_token = authorize_msal()
-
-    batch_url = f"https://{ORG_ID}.api.{ORG_REGION}.dynamics.com/api/data/v9.2/$batch"
-    destination_url = f"https://{ORG_ID}.api.{ORG_REGION}.dynamics.com/api/data/v9.2/{PLURAL_TABLE_NAME}"    
+    access_token = authorize_msal() 
 
     if not access_token:
         print("Unable to retrieve access token.")
@@ -97,6 +94,9 @@ def lambda_handler(event, context):
     batch_id = str(uuid.uuid4())
     changeset_id = str(uuid.uuid4())
     sess.headers.update({"Content-Type": f"multipart/mixed;boundary=batch_{batch_id}"})
+
+    batch_url = f"https://{ORG_ID}.api.{ORG_REGION}.dynamics.com/api/data/v9.2/$batch"
+    destination_url = f"https://{ORG_ID}.api.{ORG_REGION}.dynamics.com/api/data/v9.2/{PLURAL_TABLE_NAME}"
 
     def dataverse_mapping(data):
         return format_bulk_creation(batch_id, changeset_id, destination_url, data, cols)
