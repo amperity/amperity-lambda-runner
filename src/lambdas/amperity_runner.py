@@ -141,15 +141,14 @@ class AmperityAPIRunner(AmperityRunner):
 
     @rate_limit
     def runner_logic(self, data):
-        output_data = [self.custom_mapping(d) for d in data] if self.custom_mapping else data
+        output_data = self.custom_mapping(data) if self.custom_mapping else data
 
         resp = self.destination_session.post(
             url=self.destination_url,
-            data=json.dumps({self.data_key: output_data})
+            data=output_data
         )
-        resp_content = json.loads(resp.text)
 
-        if resp_content.get('status') != 200:
+        if not resp.ok:
             # NOTE - For now going with naive approach and just constantly appending to this.
             #  This may end up breaking poll_for_status if we exceed length limit
             self.errors.append(resp.text)
