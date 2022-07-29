@@ -14,6 +14,7 @@ By using our Microsoft Dataverse connector, Amperity will send data to an API Ga
 ## Getting Started
 
 ### Setup authentication
+
 1. In Azure Active Directory, go to [App Registrations](https://portal.azure.com/#view/Microsoft_AAD_IAM/ActiveDirectoryMenuBlade/~/RegisteredApps)
 2. Click "New Registration" , name your app, and leave everything else as default. Click "Register"
 3. On your new app's overview page, copy the "Application (client) ID" and "Directory (tenant) ID" to your environment variables.
@@ -37,6 +38,8 @@ By using our Microsoft Dataverse connector, Amperity will send data to an API Ga
     b. Click on "New app user" and select the app you just created, your business unit, and under "Security roles", click the edit button.
 
     c. Select "Service Reader" and "Service Writer", click "Save", then click "Create".
+
+8. You are now ready to run your connector!
 
 Set the following environment variables:
 - ORG_ID
