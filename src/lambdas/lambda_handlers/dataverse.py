@@ -16,6 +16,7 @@ CLIENT_SECRET = os.getenv("CLIENT_SECRET")
 AUTHORITY = "https://login.microsoftonline.com/" + TENANT_ID
 SCOPE = [f"https://{ORG_ID}.api.{ORG_REGION}.dynamics.com/.default"]
 
+AMPERITY_TENANT_ID = "acme2-fullcdp-hackday"
 SINGULAR_TABLE_NAME = "cr812_customer"
 PLURAL_TABLE_NAME = "cr812_customers"
 
@@ -108,7 +109,7 @@ def lambda_handler(event, context):
     amperity_runner = AmperityAPIRunner(
         payload,
         context,
-        'acme2-fullcdp-hackday',
+        AMPERITY_TENANT_ID,
         destination_url=batch_url,
         destination_session=sess,
         custom_mapping=dataverse_mapping
