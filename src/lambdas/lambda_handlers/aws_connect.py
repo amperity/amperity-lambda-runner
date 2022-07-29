@@ -1,7 +1,8 @@
 import json
 
 import boto3
-import requests
+
+from lambdas.amperity_runner import AmperityBotoRunner
 
 """
 Notes on AWS Connect workflow/behavior
@@ -38,53 +39,33 @@ CONNECT_CLIENT = boto3.client(
 )
 
 
-def lambda_handler(event, context):
+class AmperityConnectRunner(AmperityBotoRunner):
     """
-    curl to trigger local test:
-    curl -X POST 'http://localhost:5555/lambda/aws_connect' \
-        -H 'Content-Type: application/json' \
-        -d '{"data_url": "http://fake_s3:4566/test-bucket/aws_connect_example.ndjson"}}'
+    Example of how to use the BotoRunner and the parent of a custom Boto class. Another approach would be to write
+    your own callback function and override runner_logic in your class instance.
+    (ie connect_runner.runner_logic = callback)
+    Currently not super opinionated on which approach you take.
 
-    Example record:
-    {
-        "BirthDate": "1933-09-12",
-        "AccountNumber": "a7c91377-d3ef-3364-8d02-381f15d2e237",
-        "LastName": "Barnes",
-        "EmailAddress": "abarnes@rushthomasanddudley.com",
-        "FirstName": "Aaron",
-        "PhoneNumber": "+1-046-394-6845x56517",
-        "country": null,
-        "city": "West Chop",
-        "postal": "20975",
-        "address": "2865 Thomas Ranch Close",
-        "state": "MA"
-    }
+    This implementation is inefficient b/c runner_logic is invoked with a list of records. Then we parse each record
+    individually again. Not a huge deal for a demo but if this ever needs to go to prod we should rewrite.
+
     """
-    address_dict = {
-        'address': 'Address1',
-        'city': 'City',
-        'state': 'State',
-        'postal': 'PostalCode',
-        'country': 'Country'
-    }
+    def runner_logic(self, data):
+        address_dict = {
+            'address': 'Address1',
+            'city': 'City',
+            'state': 'State',
+            'postal': 'PostalCode',
+            'country': 'Country'
+        }
 
-    payload = json.loads(event['body'])
-
-    # Settings field is always in the payload. Check if it has a key/value of 'truncate': True
-    if payload['settings'].get('truncate'):
-        truncate_connect_instance()
-
-    # https://requests.readthedocs.io/en/latest/user/advanced/?highlight=body-content-workflow#body-content-workflow
-    with requests.get(payload.get('data_url'), stream=True) as resp:
-        print('Starting AWS Connect Upload')
-        # https://requests.readthedocs.io/en/latest/user/advanced/?highlight=body-content-workflow#streaming-requests
-        for line in resp.iter_lines():
-            line_content = json.loads(line.decode('utf-8'))
+        for record in data:
+            print(record)
             address_val = {}
             row_val = {}
 
-            for key, val in line_content.items():
-                # Connect doesn't support NoneTypes so we skip any missing values
+            for key, val in record.items():
+                # Connect doesn't support NoneTypes skip any missing values
                 if not val:
                     continue
 
@@ -101,53 +82,17 @@ def lambda_handler(event, context):
                 **row_val
             )
 
-    print('Finished AWS Connect Upload')
 
-    report_url = payload.get('callback_url') + payload.get('webhook_id')
-    auth_str = f"Bearer {payload.get('access_token')}"
+def lambda_handler(event, context):
+    payload = json.loads(event['body'])
 
-    callback_resp = requests.put(
-        report_url,
-        headers={
-            'Content-Type': 'application/json',
-            'X-Amperity-Tenant': 'noodles',
-            'Authorization': auth_str
-        },
-        data=json.dumps({
-            "state": "succeeded",
-            "progress": 1
-        })
+    connect_runner = AmperityConnectRunner(
+        payload,
+        context,
+        'test',
+        boto_client=CONNECT_CLIENT
     )
 
-    if callback_resp.status_code != 200:
-        print(callback_resp.status_code)
-        print(callback_resp.content)
+    status = connect_runner.run()
 
-    print('Lambda Finished')
-
-    return {'statusCode': 200}
-
-
-def truncate_connect_instance():
-    """
-    Included is some pseudocode of a truncate and load functionality because there is no deduplication
-        out of the box in Connect. Two approaches are use these two API methods for a roundabout process or
-        enable their 'Identity Resolution' feature and rely on it to upsert records correctly.
-
-    NOTE KeyName is not using the same keys as are in the create endpoint. See link below for valid keynames
-    https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/customer-profiles.html#CustomerProfiles.Client.search_profiles
-
-    profiles = CONNECT_CLIENT.search_profiles(
-        DomainName=CONNECT_DOMAIN,
-        KeyName='_account',
-        # Create a list of all AccountNumber values and pass it in here.
-        Values=['']
-    )
-
-    for profile in profiles:
-        CONNECT_CLIENT.delete_profile(
-            DomainName=CONNECT_DOMAIN,
-            ProfileId=profile.get('ProfileId')
-        )
-    """
-    pass
+    return status
