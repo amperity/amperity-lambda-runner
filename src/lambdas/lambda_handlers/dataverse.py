@@ -13,9 +13,9 @@ TENANT_ID = os.getenv("TENANT_ID")
 CLIENT_ID = os.getenv("CLIENT_ID")
 CLIENT_SECRET = os.getenv("CLIENT_SECRET")
 
-AMPERITY_TENANT_ID = "acme2-fullcdp-hackday"
-SINGULAR_TABLE_NAME = "cr812_customer"
-PLURAL_TABLE_NAME = "cr812_customers"
+AMPERITY_TENANT_ID = ""
+SINGULAR_TABLE_NAME = ""
+PLURAL_TABLE_NAME = ""
 
 AUTHORITY = "https://login.microsoftonline.com/" + TENANT_ID
 SCOPE = [f"https://{ORG_ID}.api.{ORG_REGION}.dynamics.com/.default"]
