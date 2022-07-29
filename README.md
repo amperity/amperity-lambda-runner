@@ -36,7 +36,7 @@ You now have a running environment! Below are a couple more helpful commands if 
 
 1. `make down` brings down all docker containers in this project.
 1. `make sh` launches a new container using the python_env image for you to test in.
-    - There are `sh` targets for already running containers.
+    - There are `sh` targets for already running containers. 
 1. `make logs` Will display the logs from all containers from the time you run the command.
     - There are `logs` targets for individual containers if you want less clutter.
 
