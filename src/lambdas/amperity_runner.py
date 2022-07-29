@@ -69,16 +69,14 @@ class AmperityRunner:
         # Do we want to kill a lambda if it can't report status to the app?
         if start_response.status_code != 200:
             return http_response(start_response.status_code, 'ERROR', 'Error polling for status.')
-
-        head_resp = requests.head(self.data_url)
-        self.file_bytes = int(head_resp.headers.get('Content-Length'))
-
+        
         with requests.get(self.data_url, stream=True) as stream_resp:
             if stream_resp.status_code != 200:
                 self.poll_for_status('failed', 0, reason='Failed to download file.')
 
                 return stream_resp
 
+            self.file_bytes = int(stream_resp.headers.get('Content-Length'))
             self.process_stream(stream_resp)
 
         # TODO - Math doesn't add up on this last call. Hardcode or figure out math problem?
