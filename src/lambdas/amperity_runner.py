@@ -70,10 +70,8 @@ class AmperityRunner:
         if start_response.status_code != 200:
             return http_response(start_response.status_code, 'ERROR', 'Error polling for status.')
 
-        head_resp = requests.head(self.data_url)
-        self.file_bytes = int(head_resp.headers.get('Content-Length'))
-
         with requests.get(self.data_url, stream=True) as stream_resp:
+            self.file_bytes = int(stream_resp.headers.get('Content-Length'))
             if stream_resp.status_code != 200:
                 self.poll_for_status('failed', 0, reason='Failed to download file.')
 
@@ -143,17 +141,16 @@ class AmperityAPIRunner(AmperityRunner):
 
     @rate_limit
     def runner_logic(self, data):
-        output_data = [self.custom_mapping(d) for d in data] if self.custom_mapping else data
+        
+        output_data = self.custom_mapping(data)
 
         resp = self.destination_session.post(
             url=self.destination_url,
-            data=json.dumps({self.data_key: output_data})
+            data=output_data
         )
-        resp_content = json.loads(resp.text)
 
-        if resp_content.get('status') != 200:
-            # NOTE - For now going with naive approach and just constantly appending to this.
-            #  This may end up breaking poll_for_status if we exceed length limit
+        if not resp.ok:
+            print("Error sending to destination...")
             self.errors.append(resp.text)
 
         self.num_requests += len(output_data)
