@@ -20,6 +20,7 @@ PLURAL_TABLE_NAME = "cr812_customers"
 AUTHORITY = "https://login.microsoftonline.com/" + TENANT_ID
 SCOPE = [f"https://{ORG_ID}.api.{ORG_REGION}.dynamics.com/.default"]
 
+
 def authorize_msal():
     # https://github.com/AzureAD/microsoft-authentication-library-for-python/blob/dev/sample/confidential_client_secret_sample.py
     app = msal.ConfidentialClientApplication(CLIENT_ID, authority=AUTHORITY, client_credential=CLIENT_SECRET)
