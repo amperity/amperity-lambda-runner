@@ -71,12 +71,12 @@ class AmperityRunner:
             return http_response(start_response.status_code, 'ERROR', 'Error polling for status.')
 
         with requests.get(self.data_url, stream=True) as stream_resp:
-            self.file_bytes = int(stream_resp.headers.get('Content-Length'))
             if stream_resp.status_code != 200:
                 self.poll_for_status('failed', 0, reason='Failed to download file.')
 
                 return stream_resp
-
+            
+            self.file_bytes = int(stream_resp.headers.get('Content-Length'))
             self.process_stream(stream_resp)
 
         # TODO - Math doesn't add up on this last call. Hardcode or figure out math problem?
