@@ -120,3 +120,5 @@ def lambda_handler(event, context):
     return {
         "statusCode": res.status_code
     }
+
+    # return res
