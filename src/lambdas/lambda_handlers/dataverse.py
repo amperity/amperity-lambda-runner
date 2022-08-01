@@ -13,7 +13,6 @@ TENANT_ID = os.getenv("TENANT_ID")
 CLIENT_ID = os.getenv("CLIENT_ID")
 CLIENT_SECRET = os.getenv("CLIENT_SECRET")
 
-AMPERITY_TENANT_ID = ""
 SINGULAR_TABLE_NAME = ""
 PLURAL_TABLE_NAME = ""
 
@@ -75,6 +74,8 @@ def format_bulk_creation(batch_id, changeset_id, destination_url, data, cols):
 def lambda_handler(event, context):
     print(event)
     payload = json.loads(event['body']) if type(event['body']) == str else event['body']
+    amperity_tenant_id = payload.get("tenant_id")
+
     access_token = authorize_msal() 
 
     if not access_token:
@@ -109,7 +110,7 @@ def lambda_handler(event, context):
     amperity_runner = AmperityAPIRunner(
         payload,
         context,
-        AMPERITY_TENANT_ID,
+        amperity_tenant_id,
         destination_url=batch_url,
         destination_session=sess,
         custom_mapping=dataverse_mapping
