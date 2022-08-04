@@ -282,8 +282,7 @@ class TestAmperityBotoRunner:
         assert e.type is NotImplementedError
 
     def test_boto_runner_raises_runner_logic_exception(self, requests_mock):
-        requests_mock.head('https://fake-data.example/', headers=mock_headers)
-        requests_mock.get('https://fake-data.example/', text=mock_ndjson)
+        requests_mock.get('https://fake-data.example/', text=mock_ndjson, headers=mock_headers)
         requests_mock.put('https://fake-callback.example/fake123')
 
         boto_runner = AmperityBotoRunner(
