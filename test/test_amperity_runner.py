@@ -19,6 +19,7 @@ mock_headers = {'Content-Length': str(len(mock_ndjson.encode('utf-8')))}
 destination_url = 'https://fake-destination.example/'
 destination_sess = requests.Session()
 
+
 class TestAmperityRunner:
     def test_construct_callback_session(self):
         test_runner = AmperityRunner(
