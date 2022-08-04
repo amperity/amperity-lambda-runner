@@ -13,8 +13,8 @@ TENANT_ID = os.getenv("TENANT_ID")
 CLIENT_ID = os.getenv("CLIENT_ID")
 CLIENT_SECRET = os.getenv("CLIENT_SECRET")
 
-SINGULAR_TABLE_NAME = ""
-PLURAL_TABLE_NAME = ""
+SINGULAR_TABLE_NAME = "cr812_customer"
+PLURAL_TABLE_NAME = "cr812_customers"
 
 AUTHORITY = "https://login.microsoftonline.com/" + TENANT_ID
 SCOPE = [f"https://{ORG_ID}.api.{ORG_REGION}.dynamics.com/.default"]
