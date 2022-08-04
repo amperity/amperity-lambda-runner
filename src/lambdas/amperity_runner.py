@@ -113,7 +113,7 @@ class AmperityRunner:
 
 class AmperityAPIRunner(AmperityRunner):
     def __init__(self, *args, destination_url=None, destination_session=None, req_per_min=0, custom_mapping=None,
-                 data_key='data', **kwargs):
+                 data_key=None, **kwargs):
         """
         Extension of the base AmperityRunner class designed to easily send data to an API endpoint.
 
@@ -141,7 +141,8 @@ class AmperityAPIRunner(AmperityRunner):
 
     @rate_limit
     def runner_logic(self, data):
-        output_data = self.custom_mapping(data) if self.custom_mapping else data
+        mapped_data = self.custom_mapping(data) if self.custom_mapping else data
+        output_data = json.dumps({self.data_key: mapped_data}) if self.data_key else mapped_data
 
         resp = self.destination_session.post(
             url=self.destination_url,
