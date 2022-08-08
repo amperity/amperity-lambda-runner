@@ -119,6 +119,4 @@ def lambda_handler(event, context):
 
     res = amperity_runner.run()
 
-    return {
-        "statusCode": res.status_code
-    }
+    return res
