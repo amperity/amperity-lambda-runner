@@ -75,6 +75,7 @@ class AmperityRunner:
                 self.poll_for_status('failed', 0, reason='Failed to download file.')
 
                 return stream_resp
+
             self.file_bytes = int(stream_resp.headers.get('Content-Length'))
             self.process_stream(stream_resp)
 
