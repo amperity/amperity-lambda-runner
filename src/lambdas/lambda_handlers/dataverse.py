@@ -30,7 +30,7 @@ def authorize_msal():
     if not result:
         logging.info("No suitable token exists in cache. Let's get a new one from AAD.")
         result = app.acquire_token_for_client(scopes=SCOPE)
-    
+
     access_token = result.get("access_token")
 
     return access_token
@@ -68,6 +68,7 @@ def format_bulk_creation(batch_id, changeset_id, destination_url, data, cols):
 
     output += f"--changeset_{changeset_id}--\n"
     output += f"--batch_{batch_id}--"
+
     return output
 
 
@@ -76,7 +77,7 @@ def lambda_handler(event, context):
     payload = json.loads(event['body']) if type(event['body']) == str else event['body']
     amperity_tenant_id = payload.get("tenant_id")
 
-    access_token = authorize_msal() 
+    access_token = authorize_msal()
 
     if not access_token:
         print("Unable to retrieve access token.")
@@ -121,5 +122,3 @@ def lambda_handler(event, context):
     return {
         "statusCode": res.status_code
     }
-
-    # return res
