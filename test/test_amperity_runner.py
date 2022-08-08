@@ -31,8 +31,7 @@ class TestAmperityRunner:
         assert test_runner.callback_session is not None
 
     def test_happy_path(self, requests_mock):
-        mock_head = requests_mock.head('https://fake-data.example/', headers=mock_headers)
-        mock_data = requests_mock.get('https://fake-data.example/', text=mock_ndjson)
+        mock_data = requests_mock.get('https://fake-data.example/', text=mock_ndjson, headers=mock_headers)
         mock_callback = requests_mock.put('https://fake-callback.example/fake123')
         mock_destination = requests_mock.post(destination_url, text='{"status":200}')
 
@@ -42,6 +41,7 @@ class TestAmperityRunner:
             'test-tenant',
             destination_url=destination_url,
             destination_session=destination_sess,
+            data_key='data'
         )
 
         expected_request = json.dumps({"data": [{
@@ -55,7 +55,6 @@ class TestAmperityRunner:
 
         test_runner.run()
 
-        assert mock_head.call_count == 1
         assert mock_data.call_count == 1
         assert mock_destination.call_count == 1
         assert mock_callback.call_count == 2
@@ -63,7 +62,6 @@ class TestAmperityRunner:
         assert mock_destination.last_request.text == expected_request
 
     def test_reports_download_failure_to_callback(self, requests_mock):
-        requests_mock.head('https://fake-data.example/', headers={'Content-Length': '8'})
         requests_mock.get('https://fake-data.example/', text='Permissions Denied', status_code=403)
         mock_callback = requests_mock.put('https://fake-callback.example/fake123')
         mock_destination = requests_mock.post(destination_url, text='{"status":200}')
@@ -84,8 +82,7 @@ class TestAmperityRunner:
         assert mock_callback.last_request.text == expected_poll_status
 
     def test_catch_up_to_offset(self, requests_mock):
-        mock_head = requests_mock.head('https://fake-data.example/', headers=mock_headers)
-        mock_data = requests_mock.get('https://fake-data.example/', text=mock_ndjson)
+        mock_data = requests_mock.get('https://fake-data.example/', text=mock_ndjson, headers=mock_headers)
         mock_callback = requests_mock.put('https://fake-callback.example/fake123')
         mock_destination = requests_mock.post(destination_url, text='{"status":200}')
 
@@ -97,6 +94,7 @@ class TestAmperityRunner:
             destination_session=destination_sess,
             batch_size=1,
             batch_offset=1,
+            data_key='data'
         )
 
         expected_request = json.dumps({"data": [{
@@ -107,7 +105,6 @@ class TestAmperityRunner:
 
         test_runner.run()
 
-        assert mock_head.call_count == 1
         assert mock_data.call_count == 1
         assert mock_destination.call_count == 1
         assert mock_callback.call_count == 2
@@ -121,8 +118,7 @@ class TestAmperityRunner:
 class TestAmperityAPIRunner:
     @unittest.mock.patch('lambdas.helpers.sleep')
     def test_rate_limit(self, sleep_mock, requests_mock):
-        mock_head = requests_mock.head('https://fake-data.example/', headers=mock_headers)
-        mock_data = requests_mock.get('https://fake-data.example/', text=mock_ndjson)
+        mock_data = requests_mock.get('https://fake-data.example/', text=mock_ndjson, headers=mock_headers)
         mock_callback = requests_mock.put('https://fake-callback.example/fake123')
         mock_destination = requests_mock.post(destination_url, text='{"status":200}')
 
@@ -137,7 +133,6 @@ class TestAmperityAPIRunner:
         )
         test_runner.run()
 
-        assert mock_head.call_count == 1
         assert mock_data.call_count == 1
         assert mock_destination.call_count == 2
         assert mock_callback.call_count == 3
@@ -146,8 +141,7 @@ class TestAmperityAPIRunner:
     @unittest.mock.patch.object(LambdaContext, 'get_remaining_time_in_millis', return_value=300)
     @unittest.mock.patch('boto3.client')
     def test_lambda_timeout(self, boto_mock, context_mock, requests_mock):
-        mock_head = requests_mock.head('https://fake-data.example/', headers=mock_headers)
-        mock_data = requests_mock.get('https://fake-data.example/', text=mock_ndjson)
+        mock_data = requests_mock.get('https://fake-data.example/', text=mock_ndjson, headers=mock_headers)
         mock_callback = requests_mock.put('https://fake-callback.example/fake123')
         mock_destination = requests_mock.post(destination_url, text='{"status":200}')
 
@@ -162,7 +156,6 @@ class TestAmperityAPIRunner:
         )
         test_runner.run()
 
-        assert mock_head.call_count == 1
         assert mock_data.call_count == 1
         assert mock_destination.call_count == 0
         assert mock_callback.call_count == 3
@@ -170,17 +163,16 @@ class TestAmperityAPIRunner:
         assert boto_mock.call_count == 2
 
     def test_custom_mapping(self, requests_mock):
-        mock_head = requests_mock.head('https://fake-data.example/', headers=mock_headers)
-        mock_data = requests_mock.get('https://fake-data.example/', text=mock_ndjson)
+        mock_data = requests_mock.get('https://fake-data.example/', text=mock_ndjson, headers=mock_headers)
         mock_callback = requests_mock.put('https://fake-callback.example/fake123')
         mock_destination = requests_mock.post(destination_url, text='{"status":200}')
 
-        def add_customer_id(d):
-            return dict(d, **{
+        def add_customer_id(data):
+            return [dict(d, **{
                 'userId': d['cust_id'] if 'cust_id' in d else 1234,
                 'type': 'track',
                 'event': 'Product Purchased'
-            })
+                }) for d in data]
 
         test_runner = AmperityAPIRunner(
             mock_event,
@@ -189,6 +181,7 @@ class TestAmperityAPIRunner:
             destination_url=destination_url,
             destination_session=destination_sess,
             custom_mapping=add_customer_id,
+            data_key='data'
         )
 
         expected_request = json.dumps({"data": [{
@@ -208,7 +201,6 @@ class TestAmperityAPIRunner:
 
         test_runner.run()
 
-        assert mock_head.call_count == 1
         assert mock_data.call_count == 1
         assert mock_destination.call_count == 1
         assert mock_callback.call_count == 2
@@ -216,8 +208,7 @@ class TestAmperityAPIRunner:
         assert mock_destination.last_request.text == expected_request
 
     def test_dynamic_keyword(self, requests_mock):
-        mock_head = requests_mock.head('https://fake-data.example/', headers=mock_headers)
-        mock_data = requests_mock.get('https://fake-data.example/', text=mock_ndjson)
+        mock_data = requests_mock.get('https://fake-data.example/', text=mock_ndjson, headers=mock_headers)
         mock_callback = requests_mock.put('https://fake-callback.example/fake123')
         mock_destination = requests_mock.post(destination_url, text='{"status":200}')
 
@@ -227,7 +218,7 @@ class TestAmperityAPIRunner:
             'test-tenant',
             destination_url=destination_url,
             destination_session=destination_sess,
-            data_key='batch'
+            data_key="batch"
         )
 
         expected_request = json.dumps({"batch": [{
@@ -241,7 +232,6 @@ class TestAmperityAPIRunner:
 
         test_runner.run()
 
-        assert mock_head.call_count == 1
         assert mock_data.call_count == 1
         assert mock_destination.call_count == 1
         assert mock_callback.call_count == 2
@@ -249,10 +239,9 @@ class TestAmperityAPIRunner:
         assert mock_destination.last_request.text == expected_request
 
     def test_tracks_request_errors(self, requests_mock):
-        mock_head = requests_mock.head('https://fake-data.example/', headers=mock_headers)
-        mock_data = requests_mock.get('https://fake-data.example/', text=mock_ndjson)
+        mock_data = requests_mock.get('https://fake-data.example/', text=mock_ndjson, headers=mock_headers)
         mock_callback = requests_mock.put('https://fake-callback.example/fake123')
-        mock_destination = requests_mock.post(destination_url, text='{"status":400, "message":"error message"}')
+        mock_destination = requests_mock.post(destination_url, text='{"status":400, "message":"error message"}', status_code=400)
 
         test_runner = AmperityAPIRunner(
             mock_event,
@@ -260,6 +249,7 @@ class TestAmperityAPIRunner:
             'test-tenant',
             destination_url=destination_url,
             destination_session=destination_sess,
+            data_key='data'
         )
 
         expected_request = json.dumps({"data": [{
@@ -274,7 +264,6 @@ class TestAmperityAPIRunner:
 
         test_runner.run()
 
-        assert mock_head.call_count == 1
         assert mock_data.call_count == 1
         assert mock_destination.call_count == 1
         assert mock_callback.call_count == 2
@@ -294,8 +283,7 @@ class TestAmperityBotoRunner:
         assert e.type is NotImplementedError
 
     def test_boto_runner_raises_runner_logic_exception(self, requests_mock):
-        requests_mock.head('https://fake-data.example/', headers=mock_headers)
-        requests_mock.get('https://fake-data.example/', text=mock_ndjson)
+        requests_mock.get('https://fake-data.example/', text=mock_ndjson, headers=mock_headers)
         requests_mock.put('https://fake-callback.example/fake123')
 
         boto_runner = AmperityBotoRunner(

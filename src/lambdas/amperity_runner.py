@@ -69,7 +69,7 @@ class AmperityRunner:
         # Do we want to kill a lambda if it can't report status to the app?
         if start_response.status_code != 200:
             return http_response(start_response.status_code, 'ERROR', 'Error polling for status.')
-        
+
         with requests.get(self.data_url, stream=True) as stream_resp:
             if stream_resp.status_code != 200:
                 self.poll_for_status('failed', 0, reason='Failed to download file.')
@@ -113,7 +113,7 @@ class AmperityRunner:
 
 class AmperityAPIRunner(AmperityRunner):
     def __init__(self, *args, destination_url=None, destination_session=None, req_per_min=0, custom_mapping=None,
-                 data_key='data', **kwargs):
+                 data_key=None, **kwargs):
         """
         Extension of the base AmperityRunner class designed to easily send data to an API endpoint.
 
@@ -141,15 +141,15 @@ class AmperityAPIRunner(AmperityRunner):
 
     @rate_limit
     def runner_logic(self, data):
-        output_data = [self.custom_mapping(d) for d in data] if self.custom_mapping else data
+        mapped_data = self.custom_mapping(data) if self.custom_mapping else data
+        output_data = json.dumps({self.data_key: mapped_data}) if self.data_key else mapped_data
 
         resp = self.destination_session.post(
             url=self.destination_url,
-            data=json.dumps({self.data_key: output_data})
+            data=output_data
         )
-        resp_content = json.loads(resp.text)
 
-        if resp_content.get('status') != 200:
+        if not resp.ok:
             # NOTE - For now going with naive approach and just constantly appending to this.
             #  This may end up breaking poll_for_status if we exceed length limit
             self.errors.append(resp.text)
