@@ -6,3 +6,5 @@ awscli-local
 python-dotenv
 requests-mock
 pycodestyle
+msal
+uuid
