@@ -14,7 +14,7 @@ class AmperityPinpointRunner(AmperityBotoRunner):
 
     def validate_phone_number(self, phone_number):
         """
-        When you provide a phone number to the phone number validation service, you should always include the country code. 
+        When you provide a phone number to the phone number validation service, you should always include the country code.
         If you don't include the country code, the service might return information for a phone number in a different country.
         https://docs.aws.amazon.com/pinpoint/latest/developerguide/validate-phone-numbers.html
         """
