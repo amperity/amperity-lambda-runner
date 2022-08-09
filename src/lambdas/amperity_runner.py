@@ -82,7 +82,7 @@ class AmperityRunner:
         # TODO - Math doesn't add up on this last call. Hardcode or figure out math problem?
         end_poll_response = self.poll_for_status('succeeded', 1)
 
-        return http_response(end_poll_response.status_code, 'succeeded', '')
+        return http_response(end_poll_response.status_code, 'succeeded', self.errors)
 
     def process_stream(self, stream_resp):
         data_batch = []
