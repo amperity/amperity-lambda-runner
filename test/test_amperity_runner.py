@@ -53,13 +53,15 @@ class TestAmperityRunner:
         }]})
         expected_poll_status = '{"state": "succeeded", "progress": 1, "errors": [], "reason": ""}'
 
-        test_runner.run()
+        expected_result = {"statusCode": 200, "body": json.dumps({"status": "succeeded", "message": []})}
+        result = test_runner.run()
 
         assert mock_data.call_count == 1
         assert mock_destination.call_count == 1
         assert mock_callback.call_count == 2
         assert mock_callback.last_request.text == expected_poll_status
         assert mock_destination.last_request.text == expected_request
+        assert result == expected_result
 
     def test_reports_download_failure_to_callback(self, requests_mock):
         requests_mock.get('https://fake-data.example/', text='Permissions Denied', status_code=403)
@@ -75,11 +77,13 @@ class TestAmperityRunner:
         )
         expected_poll_status = '{"state": "failed", "progress": 0, "errors": [], "reason": "Failed to download file."}'
 
-        test_runner.run()
+        expected_result = {"statusCode": 403, "body": json.dumps({"status": "failed", "message": "Failed to download file."})}
+        result = test_runner.run()
 
         assert mock_destination.call_count == 0
         assert mock_callback.call_count == 2
         assert mock_callback.last_request.text == expected_poll_status
+        assert result == expected_result
 
     def test_catch_up_to_offset(self, requests_mock):
         mock_data = requests_mock.get('https://fake-data.example/', text=mock_ndjson, headers=mock_headers)
@@ -103,13 +107,15 @@ class TestAmperityRunner:
         }]})
         expected_poll_status = '{"state": "succeeded", "progress": 1, "errors": [], "reason": ""}'
 
-        test_runner.run()
+        expected_result = {"statusCode": 200, "body": json.dumps({"status": "succeeded", "message": []})}
+        result = test_runner.run()
 
         assert mock_data.call_count == 1
         assert mock_destination.call_count == 1
         assert mock_callback.call_count == 2
         assert mock_callback.last_request.text == expected_poll_status
         assert mock_destination.last_request.text == expected_request
+        assert result == expected_result
 
     def test_lambda_timeout(self):
         pass
@@ -131,12 +137,15 @@ class TestAmperityAPIRunner:
             batch_size=1,
             req_per_min=1,
         )
-        test_runner.run()
+
+        expected_result = {"statusCode": 200, "body": json.dumps({"status": "succeeded", "message": []})}
+        result = test_runner.run()
 
         assert mock_data.call_count == 1
         assert mock_destination.call_count == 2
         assert mock_callback.call_count == 3
         assert sleep_mock.call_count == 1
+        assert result == expected_result
 
     @unittest.mock.patch.object(LambdaContext, 'get_remaining_time_in_millis', return_value=300)
     @unittest.mock.patch('boto3.client')
@@ -154,13 +163,15 @@ class TestAmperityAPIRunner:
             batch_size=1,
             req_per_min=1,
         )
-        test_runner.run()
+        expected_result = {"statusCode": 200, "body": json.dumps({"status": "succeeded", "message": []})}
+        result = test_runner.run()
 
         assert mock_data.call_count == 1
         assert mock_destination.call_count == 0
         assert mock_callback.call_count == 3
         assert context_mock.call_count == 2
         assert boto_mock.call_count == 2
+        assert result == expected_result
 
     def test_custom_mapping(self, requests_mock):
         mock_data = requests_mock.get('https://fake-data.example/', text=mock_ndjson, headers=mock_headers)
@@ -199,13 +210,15 @@ class TestAmperityAPIRunner:
         }]})
         expected_poll_status = '{"state": "succeeded", "progress": 1, "errors": [], "reason": ""}'
 
-        test_runner.run()
+        expected_result = {"statusCode": 200, "body": json.dumps({"status": "succeeded", "message": []})}
+        result = test_runner.run()
 
         assert mock_data.call_count == 1
         assert mock_destination.call_count == 1
         assert mock_callback.call_count == 2
         assert mock_callback.last_request.text == expected_poll_status
         assert mock_destination.last_request.text == expected_request
+        assert result == expected_result
 
     def test_dynamic_keyword(self, requests_mock):
         mock_data = requests_mock.get('https://fake-data.example/', text=mock_ndjson, headers=mock_headers)
@@ -230,13 +243,15 @@ class TestAmperityAPIRunner:
         }]})
         expected_poll_status = '{"state": "succeeded", "progress": 1, "errors": [], "reason": ""}'
 
-        test_runner.run()
+        expected_result = {"statusCode": 200, "body": json.dumps({"status": "succeeded", "message": []})}
+        result = test_runner.run()
 
         assert mock_data.call_count == 1
         assert mock_destination.call_count == 1
         assert mock_callback.call_count == 2
         assert mock_callback.last_request.text == expected_poll_status
         assert mock_destination.last_request.text == expected_request
+        assert result == expected_result
 
     def test_tracks_request_errors(self, requests_mock):
         mock_data = requests_mock.get('https://fake-data.example/', text=mock_ndjson, headers=mock_headers)
@@ -262,13 +277,17 @@ class TestAmperityAPIRunner:
         expected_poll_status = '{"state": "succeeded", "progress": 1, ' \
                                '"errors": ["{\\"status\\":400, \\"message\\":\\"error message\\"}"], "reason": ""}'
 
-        test_runner.run()
+        expected_result = {
+            'statusCode': 200,
+            'body': '{"status": "succeeded", "message": ["{\\"status\\":400, \\"message\\":\\"error message\\"}"]}'}
+        result = test_runner.run()
 
         assert mock_data.call_count == 1
         assert mock_destination.call_count == 1
         assert mock_callback.call_count == 2
         assert mock_callback.last_request.text == expected_poll_status
         assert mock_destination.last_request.text == expected_request
+        assert result == expected_result
 
 
 class TestAmperityBotoRunner:
