@@ -5,9 +5,9 @@ from datetime import datetime
 
 from lambdas.amperity_runner import AmperityBotoRunner
 
-PINPOINT_CLIENT = boto3.client("pinpoint")
+PINPOINT_CLIENT = boto3.client("pinpoint", region_name="us-east-1")
 PINPOINT_APP_ID = os.getenv("PINPOINT_APP_ID")  # Also known as Project ID
-ORIGINATION_NUMBER = os.getenv("ORIGINATION_NUMBER")
+PINPOINT_ORIGINATION_NUMBER = os.getenv("PINPOINT_ORIGINATION_NUMBER")
 
 
 class AmperityPinpointRunner(AmperityBotoRunner):
@@ -40,7 +40,7 @@ class AmperityPinpointRunner(AmperityBotoRunner):
                         "SMSMessage": {
                             "Body": message,
                             "MessageType": message_type,
-                            "OriginationNumber": ORIGINATION_NUMBER}}})
+                            "OriginationNumber": PINPOINT_ORIGINATION_NUMBER}}})
         except Exception as e:
             print("Couldn't send sms message", destination_number, e)
             return None
