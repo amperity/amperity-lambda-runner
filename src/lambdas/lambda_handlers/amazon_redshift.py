@@ -11,7 +11,7 @@ from lambdas.amperity_runner import AmperityBotoRunner
 logger = logging.getLogger(__name__)
 
 
-REDSHIFT_CLIENT = boto3.client("redshift-data", region_name="us-east-1")
+REDSHIFT_CLIENT = boto3.client("redshift-data")
 REDSHIFT_CLUSTER_ID = os.getenv("REDSHIFT_CLUSTER_ID")
 REDSHIFT_DB_NAME = os.getenv("REDSHIFT_DB_NAME")
 REDSHIFT_DB_USER = os.getenv("REDSHIFT_DB_USER")
