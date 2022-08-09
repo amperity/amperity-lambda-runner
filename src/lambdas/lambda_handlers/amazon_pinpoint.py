@@ -58,6 +58,8 @@ class AmperityPinpointRunner(AmperityBotoRunner):
                     print(f"Message '{formatted_message}' sent to {phone_number}! Message ID: {message_id}. {str(datetime.now())}")
                 else:
                     self.errors.append(item)
+            else:
+                self.errors.append(f"Couldn't validate phone number {phone_number}")
 
 
 def lambda_handler(event, context):
