@@ -15,7 +15,19 @@ Set the following environment variables:
 - PINPOINT_ORIGINATION_NUMBER
 
 Lambda must have the following permissions policies:
-- [PinpointFullAccess](IAM/PinpointFullAccess.json)
+```
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "VisualEditor0",
+            "Effect": "Allow",
+            "Action": "mobiletargeting:*",
+            "Resource": "*"
+        }
+    ]
+}
+```
 
 ## API Docs
 - [Boto3](https://boto3.amazonaws.com/v1/documentation/api/latest/index.html)
