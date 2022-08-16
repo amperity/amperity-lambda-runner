@@ -64,3 +64,9 @@ docker-build:
 
 lambda-build:
 	sh util/build.sh ${filename}
+
+sam-build:
+	sh util/sam/sam-build.sh ${filename}
+
+sam-publish:
+	sam publish --template build/packaged.yaml --region ${region}
