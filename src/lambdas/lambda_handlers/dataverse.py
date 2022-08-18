@@ -7,8 +7,8 @@ import uuid
 
 from lambdas.amperity_runner import AmperityAPIRunner
 
-AZ_ORG_ID = os.getenv("AZ_ORG_ID")
-AZ_ORG_REGION = os.getenv("AZ_ORG_REGION")
+PA_ENV_NAME = os.getenv("PA_ENV_NAME")
+PA_ENV_REGION = os.getenv("PA_ENV_REGION")
 AZ_TENANT_ID = os.getenv("AZ_TENANT_ID")
 AZ_CLIENT_ID = os.getenv("AZ_CLIENT_ID")
 AZ_CLIENT_SECRET = os.getenv("AZ_CLIENT_SECRET")
@@ -17,7 +17,7 @@ SINGULAR_TABLE_NAME = os.getenv("SINGULAR_TABLE_NAME")
 PLURAL_TABLE_NAME = os.getenv("PLURAL_TABLE_NAME")
 
 AUTHORITY = "https://login.microsoftonline.com/" + AZ_TENANT_ID
-SCOPE = [f"https://{AZ_ORG_ID}.api.{AZ_ORG_REGION}.dynamics.com/.default"]
+SCOPE = [f"https://{PA_ENV_NAME}.api.{PA_ENV_REGION}.dynamics.com/.default"]
 
 
 def authorize_msal():
@@ -38,7 +38,7 @@ def authorize_msal():
 
 def fetch_columns(single_table_name, session):
 
-    url = f"https://{AZ_ORG_ID}.api.{AZ_ORG_REGION}.dynamics.com/api/data/v9.2/EntityDefinitions(LogicalName='{single_table_name}')/Attributes"
+    url = f"https://{PA_ENV_NAME}.api.{PA_ENV_REGION}.dynamics.com/api/data/v9.2/EntityDefinitions(LogicalName='{single_table_name}')/Attributes"
 
     res = session.get(url)
 
@@ -102,8 +102,8 @@ def lambda_handler(event, context):
     changeset_id = str(uuid.uuid4())
     sess.headers.update({"Content-Type": f"multipart/mixed;boundary=batch_{batch_id}"})
 
-    batch_url = f"https://{AZ_ORG_ID}.api.{AZ_ORG_REGION}.dynamics.com/api/data/v9.2/$batch"
-    destination_url = f"https://{AZ_ORG_ID}.api.{AZ_ORG_REGION}.dynamics.com/api/data/v9.2/{PLURAL_TABLE_NAME}"
+    batch_url = f"https://{PA_ENV_NAME}.api.{PA_ENV_REGION}.dynamics.com/api/data/v9.2/$batch"
+    destination_url = f"https://{PA_ENV_NAME}.api.{PA_ENV_REGION}.dynamics.com/api/data/v9.2/{PLURAL_TABLE_NAME}"
 
     def dataverse_mapping(data):
         return format_bulk_creation(batch_id, changeset_id, destination_url, data, cols)
