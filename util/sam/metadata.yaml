@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Transform: AWS::Serverless-2016-10-31
+Transform: 'AWS::Serverless-2016-10-31'
 Description: >
   Amperity supported Lambda logic for handling data out of our webhook destination.
   
@@ -13,6 +13,4 @@ Metadata:
     ReadmeUrl: README.md
     Labels: ["amperity", "external-api", "boto3"]
     HomePageUrl: https://github.com/amperity/amperity-lambda-runner
-# SemanticVersion has to be a 3 digit decimal otherwise
-    SemanticVersion: 0.0.2
     SourceCodeUrl: https://github.com/amperity/amperity-lambda-runner

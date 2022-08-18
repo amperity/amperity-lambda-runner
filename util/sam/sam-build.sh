@@ -8,6 +8,7 @@ rm -rf build/*
 
 cat util/sam/metadata.yaml > build/template.yaml
 echo "    Name: amperity-$app_name-runner" >> build/template.yaml
+echo "    SemanticVersion: ${version}" >> build/template.yaml
 cat util/sam/function.yaml >> build/template.yaml
 
 echo "Building artifacts for ${filename} to upload to servless repo"
@@ -35,5 +36,5 @@ sam package --template template.yaml --output-template-file packaged.yaml --s3-b
 echo "\n--------------------\n\n"
 echo "Finished building the serverless repo package. Please double check build/packaged.yaml."
 echo "If you need to bump the version number now is the time to do it."
-echo "Once you are confident the app is ready to go run: \n make sam-publish"
+echo "Once you are confident the app is ready to go run: \n make sam-publish region=us-west-2"
 echo "\n\n--------------------\n"

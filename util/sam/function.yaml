@@ -1,49 +1,31 @@
 
-# TODO need to create the right IAM role
-
-Globals:
-  Function:
-    Timeout: 900
-
 Resources:
-  AmperityRunnerFunction:
-    Type: AWS::Serverless::Function
+  AmperityRunnerGateway:
+    Type: 'AWS::Serverless::Api'
     Properties:
-      CodeUri: ./
+      StageName: Prod
+      Auth:
+        ApiKeyRequired: true
+        UsagePlan:
+          CreateUsagePlan: PER_API
+          UsagePlanName: AmperityRunnerGatewayAuthorization
+
+  AmperityRunnerFunction:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      FunctionName: amperity-lambda-runner
+      CodeUri: .
       Handler: app.lambda_handler
       Runtime: python3.9
+      Timeout: 900
       Events:
-        APIEvent:
+        ApiEvent:
           Type: Api
           Properties:
-            Path: /
-            Method: post
-            Auth:
-              ApiKeyRequired: true
-
-  LambdaInvokePolicy:
-    Type: AWS::IAM::Role
-    Properties:
-      RoleName: LambdaInvokeRole
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-          - Effect: "Allow"
-            Principal:
-              Service:
-                - "lambda.amazonaws.com"
-            Action:
-              - "lambda:InvokeFunction"
-
-
-#{
-#    "Version": "2012-10-17",
-#    "Statement": [
-#        {
-#            "Sid": "AllowLambdaToInvokeLambda",
-#            "Effect": "Allow",
-#            "Action": "lambda:InvokeFunction",
-#            "Resource": "arn:aws:lambda:us-east-2:884752987182:function:phil-test"
-#        }
-#    ]
-#}
+            RestApiId:
+              Ref: AmperityRunnerGateway
+            Path: /run
+            Method: any
+      Policies:
+        - LambdaInvokePolicy:
+            FunctionName: amperity-lambda-runner
