@@ -7,22 +7,22 @@ import uuid
 
 from lambdas.amperity_runner import AmperityAPIRunner
 
-ORG_ID = os.getenv("ORG_ID")
-ORG_REGION = os.getenv("ORG_REGION")
-TENANT_ID = os.getenv("TENANT_ID")
-CLIENT_ID = os.getenv("CLIENT_ID")
-CLIENT_SECRET = os.getenv("CLIENT_SECRET")
+AZ_ORG_ID = os.getenv("AZ_ORG_ID")
+AZ_ORG_REGION = os.getenv("AZ_ORG_REGION")
+AZ_TENANT_ID = os.getenv("AZ_TENANT_ID")
+AZ_CLIENT_ID = os.getenv("AZ_CLIENT_ID")
+AZ_CLIENT_SECRET = os.getenv("AZ_CLIENT_SECRET")
 
 SINGULAR_TABLE_NAME = os.getenv("SINGULAR_TABLE_NAME")
 PLURAL_TABLE_NAME = os.getenv("PLURAL_TABLE_NAME")
 
-AUTHORITY = "https://login.microsoftonline.com/" + TENANT_ID
-SCOPE = [f"https://{ORG_ID}.api.{ORG_REGION}.dynamics.com/.default"]
+AUTHORITY = "https://login.microsoftonline.com/" + AZ_TENANT_ID
+SCOPE = [f"https://{AZ_ORG_ID}.api.{AZ_ORG_REGION}.dynamics.com/.default"]
 
 
 def authorize_msal():
     # https://github.com/AzureAD/microsoft-authentication-library-for-python/blob/dev/sample/confidential_client_secret_sample.py
-    app = msal.ConfidentialClientApplication(CLIENT_ID, authority=AUTHORITY, client_credential=CLIENT_SECRET)
+    app = msal.ConfidentialClientApplication(AZ_CLIENT_ID, authority=AUTHORITY, client_credential=AZ_CLIENT_SECRET)
     result = None
 
     result = app.acquire_token_silent(SCOPE, account=None)
@@ -38,7 +38,7 @@ def authorize_msal():
 
 def fetch_columns(single_table_name, session):
 
-    url = f"https://{ORG_ID}.api.{ORG_REGION}.dynamics.com/api/data/v9.2/EntityDefinitions(LogicalName='{single_table_name}')/Attributes"
+    url = f"https://{AZ_ORG_ID}.api.{AZ_ORG_REGION}.dynamics.com/api/data/v9.2/EntityDefinitions(LogicalName='{single_table_name}')/Attributes"
 
     res = session.get(url)
 
@@ -102,8 +102,8 @@ def lambda_handler(event, context):
     changeset_id = str(uuid.uuid4())
     sess.headers.update({"Content-Type": f"multipart/mixed;boundary=batch_{batch_id}"})
 
-    batch_url = f"https://{ORG_ID}.api.{ORG_REGION}.dynamics.com/api/data/v9.2/$batch"
-    destination_url = f"https://{ORG_ID}.api.{ORG_REGION}.dynamics.com/api/data/v9.2/{PLURAL_TABLE_NAME}"
+    batch_url = f"https://{AZ_ORG_ID}.api.{AZ_ORG_REGION}.dynamics.com/api/data/v9.2/$batch"
+    destination_url = f"https://{AZ_ORG_ID}.api.{AZ_ORG_REGION}.dynamics.com/api/data/v9.2/{PLURAL_TABLE_NAME}"
 
     def dataverse_mapping(data):
         return format_bulk_creation(batch_id, changeset_id, destination_url, data, cols)
