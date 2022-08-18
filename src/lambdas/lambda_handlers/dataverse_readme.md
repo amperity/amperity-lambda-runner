@@ -49,11 +49,13 @@ By using our Microsoft Dataverse connector, Amperity will send data to an API Ga
 4. Create an orchestration and run!
 
 Set the following environment variables:
-- ORG_ID
-- ORG_REGION
-- TENANT_ID
-- CLIENT_ID
-- CLIENT_SECRET
+- PA_ENV_NAME
+- PA_ENV_REGOIN
+- AZ_TENANT_ID
+- AZ_CLIENT_ID
+- AZ_CLIENT_SECRET
+- SINGULAR_TABLE_NAME
+- PLURAL_TABLE_NAME
 
 ## API Docs
 - [Microsoft Web API HTTP Requests](https://docs.microsoft.com/en-us/power-apps/developer/data-platform/webapi/compose-http-requests-handle-errors)
