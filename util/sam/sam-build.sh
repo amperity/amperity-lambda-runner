@@ -22,7 +22,7 @@ cp src/lambdas/amperity_runner.py build/lambdas/
 cp src/lambdas/helpers.py build/lambdas/
 cp "src/lambdas/lambda_handlers/$filename" build/app.py
 
-cp README.md build/README.md
+cp "docs/apps/$app_name.md" build/README.md
 cp LICENSE.txt build/LICENSE.txt
 
 echo "Uploading artifacts to s3://amperity-serverless-repo/$app_name"

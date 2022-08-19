@@ -2,7 +2,6 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: 'AWS::Serverless-2016-10-31'
 Description: >
   Amperity supported Lambda logic for handling data out of our webhook destination.
-  
 
 Metadata:
   AWS::ServerlessRepo::Application:
