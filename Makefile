@@ -63,4 +63,10 @@ docker-build:
 	docker build -t "python_env:${IMAGE_VERSION}" -f "util/docker/Dockerfile" .
 
 lambda-build:
-	sh util/build.sh ${filename}
+	sh util/lambda-build.sh ${filename}
+
+sam-build:
+	sh util/sam/sam-build.sh ${filename} ${version}
+
+sam-publish:
+	sam publish --template build/packaged.yaml --region ${region}

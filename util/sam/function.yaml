@@ -1,0 +1,31 @@
+
+Resources:
+  AmperityRunnerGateway:
+    Type: 'AWS::Serverless::Api'
+    Properties:
+      StageName: Prod
+      Auth:
+        ApiKeyRequired: true
+        UsagePlan:
+          CreateUsagePlan: PER_API
+          UsagePlanName: AmperityRunnerGatewayAuthorization
+
+  AmperityRunnerFunction:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      FunctionName: amperity-lambda-runner
+      CodeUri: .
+      Handler: app.lambda_handler
+      Runtime: python3.9
+      Timeout: 900
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: AmperityRunnerGateway
+            Path: /run
+            Method: any
+      Policies:
+        - LambdaInvokePolicy:
+            FunctionName: amperity-lambda-runner
