@@ -2,6 +2,10 @@
 
 Welcome to the Amperity Lambda runner repository, this project is designed to make it easy for you to write custom code against our Webhook Destination. There is a full toolset for local development if you need it, or you can write your code here and use the build script to install any necessary packages. 
 
+## AWS Serverless Application Repository
+
+
+
 ## Quickstart
 
 The places you need to put things and commands you need to get a basic project up in lambda quickly with no local testing. Following sections will cover the repository in more depth.
@@ -67,109 +71,9 @@ Hopefully, our `AmperityAPIRunner` cover the use case you need but if it does no
 - `docker-compose.yml` Where we define our local containers.
 - `Makefile` Easier to use commands for local development.
 
-## Snippets
-
-How to curl mock lambda:
-~~~bash
-curl -X POST 'http://localhost:5555/lambda/{{ lambda filename (no .py )}}' \
-    -H 'Content-Type: application/json' -d '{"data_url": "http://fake_s3:4566/test-bucket/sample.ndjson", "callback_url": "http://api_destination:5005/mock/poll/", "webhook_id": "wh-abcd12345"}'
-~~~
-
-How to curl a deployed lambda:
-~~~bash
-curl -X POST -H 'x-api-key: {{ lambda gateway api key }}' '{{ lambda api gateway url }}' \
-    -H '{"Content-Type": "application/json"}' \
-    -d '{"data_url": "http://some-bucket/example/sample.ndjson", "callback_url": "http://some-api.exampel/mock/poll/", "webhook_id": "wh-abcd12345"}'
-~~~
-
-The shape of the body that your lambda will be invoked with:
-~~~json
-{
-    "settings": {"some": "setting"},
-    "label_name": "test label",
-    // The s3 url where the data is living
-    "data_url": "http://fake_s3:4566/test-bucket/sample.ndjson",
-    // Token used to authorize the request with amperity API
-    "access_token": "2:somevarchar:anothervarchar",
-    // Identifier for the specific webhook job you are currently processing
-    "webhook_id": "wh-somevarchar",
-    // The endpoint to send the status request to
-    "callback_url": "https://app.amperity.com/webhook/v1/"
-}
-~~~
-
-## How to setup IAM permissions
-
-If you are handling large amounts of data your lambda could reach the timeout enforced by AWS. This section explains how to configure the IAM policies necessary for your lambda to invoke itself and continue working. This is considered an anti-pattern by AWS but given the tools we can use it is the simplest solution for long-running jobs.
-
-1. Copy function arn from your lambda page. (Function overview on the right side under description)
-1. Open `Configuration -> Permissions` and open role associated with this lambda. (ie `Execution Role`)
-1. In the new tab go to `Add permissions` and select `Attach policies`
-1. You'll be moved to a new page and there you'll select `Create Policy`
-1. Navigate to the JSON tab and copy in the below json. Make sure to replace `Resource` with your function arn.
-~~~json
-{
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Sid": "AllowLambdaToInvokeLambda",
-            "Effect": "Allow",
-            "Action": "lambda:InvokeFunction",
-            "Resource": "arn:aws:lambda:us-east-2:884752987182:function:phil-test"
-        }
-    ]
-}
-~~~
-1. Create the policy and attach it to the lambda's role. 
-1. You are good to go!
-
 ## Notes
 
-This is primarily a section for maintainers to use and reference going forward.
-
-### Testing
-
-We use [pytest](https://docs.pytest.org/en/7.1.x/getting-started.html) for our automated testing. The structure is straightforward, and you can add to it by creating a new file in `test/`. 
-
-To run the full test suite use the make command: `make docker-test`
-If you'd like to run a specific test class use this make command: `make docker-test-class class_name=TestAmperityRunner`
-If you'd like to run a specific test function use this make command: `make docker-test-func class_name=TestAmperityRunner func_name=test_catch_up_to_offset`
-
-The existing automated tests are there to assert core `AmperityRunner` logic not any of the handlers. We may revisit this in the future but for now it's not an area of focus.
-
-
-### Localstack Notes
-
-Localstack seems very powerful and helpful, however, it has rather poor documentation from what I could dig up. This section is a semiformal walk-through of how we use it in case you need to do something similar.
-
-The main use case I wanted to support was having files populated in the S3 container after it was initialized. There are workaround ways we could have used but after some stackoverflow 
-
-https://aws.plainenglish.io/localstack-resource-creation-on-initialization-a86c2ce42310
-https://docs.localstack.cloud/localstack/configuration/
-
-Any files in `/docker-entrypoint-initaws.d/` will be executed on startup. Wrote a custom init script and threw it in there to load our files.
-I didn't dig into the localstack init scripts but had issues mounting fixture files to load into the environment. Best workflow I found was to mount the volumes in `/tmp/localstack/` so we didn't override any of the important files.
-
-Helpful snippets below.
-
-How to use `fake_s3` for your local development. Using your CLI you can run `awscli` commands as you would and just override the endpoint to use. See below:
-
-~~~
-aws --endpoint-url=http://localhost:4566 s3 mb s3://test-bucket
-aws --endpoint-url=http://localhost:4566 s3 ls s3://test-bucket
-aws --endpoint-url=http://localhost:4566 s3 cp ./test/fixtures/sample.ndjson s3://test-bucket
-~~~
-
-If you're inside a container you can reference `fake_s3` using it's name as the host. 
-
-~~~python
-import requests
-resp = requests.get('http://fake_s3:4566/test-bucket/sample.ndjson')
-print(resp.content)
-~~~
-
-NOTE boto3 connecting to `fake_s3` from inside a container fails due to endpoint validation inside AWS tools (both awscli & boto don't allow `fake_s3:4566` as a host) so you need to write files from outside the container and then use `requests` to read the file from inside the container.
-
+See the `docs/` directory for more detailed explanations on deploying, testing, or specific handlers. 
 
 ### Developer notes
 
@@ -177,8 +81,6 @@ List of features we want to implement.
 
 1. The lambda API gateway will timeout the connection after ~3 minutes and our app will receive a 500. 
     - Is there a good/easy to use template we can make where the lambda_handler parses the body, launches the actual "logic lambda", and returns 200 to the app?
-1. Investigate localstack for lambda gateway/context for better local development
-
 
 ## Resources
 
