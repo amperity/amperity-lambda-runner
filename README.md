@@ -4,7 +4,9 @@ Welcome to the Amperity Lambda runner repository, this project is designed to ma
 
 ## AWS Serverless Application Repository
 
+We will try to upload and maintain all files you see in `lambda_handlers/` on the AWS Serverless Application Repository. These applications will almost always require minimal configuration while deploying from the store. The main exception is our generic API application as it is designed to be used for any API you need to integrate with. There are specific READMEs for each application in `docs/apps/` if you want to learn more about what they do. If you are looking to understand how we deploy using SAM CLI take a look at `docs/deployments.md`. 
 
+The rest of this README is focused on how to use this repostiory yourself to write a lambda handler and deploy it. 
 
 ## Quickstart
 
@@ -12,13 +14,13 @@ The places you need to put things and commands you need to get a basic project u
 
 1. Create a copy of `src/lambdas/lambda_handlers/template.py` (in the same directory) with a descriptive name
 1. Choose the runner you should use for your implementation (probably `AmperityApiRunner`)
-1. Create your `requests.Session` instance with whatever auth you need. Optionally specify any batch sizes, rate limits, data mapping, or custom keys you will need for your endpoint.
-1. Optional: Use the local environment for testing (ie [Local Development](#local-development))
+1. Create your `requests.Session` instance with whatever auth you need. Optionally specify any batch sizes, rate limits, custom mapping, or custom keys you will need for your endpoint.
+1. Optional: Use the local environment for testing (see [Local Development](#local-development))
 1. Run `make lambda-build filename={ your filename.py here }`
 1. Upload `build/lambda_handerl.zip` to your lambda app.
    - Set the "Handler" option in "Runtime Settings" to `app.lambda_handler`
    - Pick a desired timeout for your lambda in "Configuration -> General Configuration". The max is 15 minutes, and we recommend using that.
-1. Test the deployed lambda by [manually invoking](#snippets) it or run the orchestration job in your Amperity tenant.
+1. Test the deployed lambda by [manually invoking](docs/testing.md#snippets) it or run the orchestration job in your Amperity tenant.
 
 ## Walk-through
 
@@ -28,7 +30,7 @@ When working locally there are several apps that are stood up. First is an API g
 
 ### Configuring your Env
 
-We utilize `Make` to handle all the local development commands. Feel free to read that file to see everything at your disposal but below are the commands needed to get up and running quick.
+We utilize `Make` to handle all the local development commands. Feel free to read that file to see everything at your disposal but below are most of the commands you'll need.
 
 1. `make docker-build` builds the custom python image we use in this repo.
 1. Optional: Add any environment variables your lambda will need to `.env`.

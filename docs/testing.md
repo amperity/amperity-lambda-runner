@@ -14,17 +14,17 @@ If you'd like to run a specific test function use this make command: `make docke
 
 The existing automated tests are there to assert core `AmperityRunner` logic not any of the handlers. We may revisit this in the future but for now it's not an area of focus.
 
+## Containers
 
-### Localstack Notes
+
+
+## Localstack Notes
 
 Localstack seems very powerful and helpful, however, it has rather poor documentation from what I could dig up. This section is a semiformal walk-through of how we use it in case you need to do something similar.
 
-The main use case I wanted to support was having files populated in the S3 container after it was initialized. There are workaround ways we could have used but after some stackoverflow 
+The main use case I wanted to support was having files populated in the S3 container after it was initialized. There are workaround ways we could have used but localstack supports custom initialization scripts on container start. We utilize that to run some aws cli commands against the container.
 
-https://aws.plainenglish.io/localstack-resource-creation-on-initialization-a86c2ce42310
-https://docs.localstack.cloud/localstack/configuration/
-
-Any files in `/docker-entrypoint-initaws.d/` will be executed on startup. Wrote a custom init script and threw it in there to load our files.
+Any files in `/docker-entrypoint-initaws.d/` will be executed on startup. With a custom init script we can look for any .ndjson files in `test/fixtures` and upload them to the new S3 container.
 I didn't dig into the localstack init scripts but had issues mounting fixture files to load into the environment. Best workflow I found was to mount the volumes in `/tmp/localstack/` so we didn't override any of the important files.
 
 Helpful snippets below.
@@ -78,3 +78,7 @@ The shape of the body that your lambda will be invoked with:
 }
 ~~~
 
+## Resources
+
+https://aws.plainenglish.io/localstack-resource-creation-on-initialization-a86c2ce42310
+https://docs.localstack.cloud/localstack/configuration/
