@@ -7,7 +7,7 @@ echo "Emptying any previous build(s)/artifacts"
 rm -rf build/*
 
 cat util/sam/metadata.yaml > build/template.yaml
-echo "    Name: amperity-$app_name-runner" >> build/template.yaml
+echo "    Name: amperity-$app_name-runner" | tr "_" "-" >> build/template.yaml
 echo "    SemanticVersion: ${version}" >> build/template.yaml
 cat util/sam/function.yaml >> build/template.yaml
 
