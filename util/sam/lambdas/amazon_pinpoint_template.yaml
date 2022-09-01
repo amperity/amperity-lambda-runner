@@ -69,7 +69,7 @@ Resources:
             Method: post
       Policies:
         - LambdaInvokePolicy:
-            FunctionName: amperity-amazon-redshift-runner
+            FunctionName: amperity-amazon-pinpoint-runner
       Environment:
         Variables:
           PINPOINT_APP_ID: ""
