@@ -17,10 +17,10 @@ Metadata:
     SemanticVersion: 1.0.0
 
 Resources:
-  ManagedInstanceRole:
+  ManagedInstanceRoleAmazonRedshift:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: ManagedInstanceRole
+      RoleName: ManagedInstanceRoleAmazonRedshift
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -52,7 +52,7 @@ Resources:
       Handler: app.lambda_handler
       Runtime: python3.9
       Timeout: 900
-      Role: !GetAtt ManagedInstanceRole.Arn
+      Role: !GetAtt ManagedInstanceRoleAmazonRedshift.Arn
       Events:
         ApiEvent:
           Type: Api
