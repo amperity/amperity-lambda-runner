@@ -8,7 +8,7 @@ echo "Emptying any previous build(s)/artifacts"
 rm -rf build/*
 
 cat util/sam/metadata.yaml > build/template.yaml
-echo "    Name: ${RUNNER_NAME}" | tr "_" "-" >> build/template.yaml
+echo "    Name: ${RUNNER_NAME}" >> build/template.yaml
 echo "    SemanticVersion: ${version}" >> build/template.yaml
 cat util/sam/function.yaml >> build/template.yaml
 sed -ie 's/FunctionName: amperity-lambda-runner/FunctionName: '"${RUNNER_NAME}"'/' build/template.yaml
