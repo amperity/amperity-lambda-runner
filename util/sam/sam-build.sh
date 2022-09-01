@@ -2,6 +2,7 @@
 
 IFS='.'
 read -r app_name _ <<< "$filename"
+ID=$(openssl rand -hex 3)
 RUNNER_NAME=$(echo "amperity-${app_name}-runner" | tr "_" "-")
 
 echo "Emptying any previous build(s)/artifacts"
@@ -11,7 +12,8 @@ cat util/sam/metadata.yaml > build/template.yaml
 echo "    Name: ${RUNNER_NAME}" >> build/template.yaml
 echo "    SemanticVersion: ${version}" >> build/template.yaml
 cat util/sam/function.yaml >> build/template.yaml
-sed -ie 's/FunctionName: amperity-lambda-runner/FunctionName: '"${RUNNER_NAME}"'/' build/template.yaml
+sed -ie 's/FunctionName: amperity-lambda-runner/FunctionName: '"${RUNNER_NAME}"-${ID}'/' build/template.yaml
+sed -ie 's/ManagedInstanceRole/ManagedInstanceRole'"${ID}"'/' build/template.yaml
 
 echo "Building artifacts for ${filename} to upload to serverless repo"
 
