@@ -43,7 +43,7 @@ Resources:
             Method: post
       Policies:
         - LambdaInvokePolicy:
-            FunctionName: amperity-amazon-redshift-runner
+            FunctionName: amperity-lambda-runner
 
 Outputs:
   AmperityRunnerFunctionAPI:
