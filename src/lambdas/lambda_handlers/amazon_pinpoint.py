@@ -51,11 +51,10 @@ class AmperityPinpointRunner(AmperityBotoRunner):
         for item in data:
             phone_number = str(item["phone_number"])
             message = str(item["message"])
-            formatted_message = f"{message} {str(datetime.now())}"
             if self.validate_phone_number(phone_number):
-                message_id = self.send_sms_message(phone_number, formatted_message, message_type="PROMOTIONAL")
+                message_id = self.send_sms_message(phone_number, message, message_type="PROMOTIONAL")
                 if message_id:
-                    print(f"Message '{formatted_message}' sent to {phone_number}! Message ID: {message_id}. {str(datetime.now())}")
+                    print(f"Message '{message}' sent to {phone_number}! Message ID: {message_id}. {str(datetime.now())}")
                 else:
                     self.errors.append(item)
             else:
