@@ -5,9 +5,10 @@ from datetime import datetime
 
 from lambdas.amperity_runner import AmperityBotoRunner
 
-PINPOINT_CLIENT = boto3.client("pinpoint", region_name="us-east-1")
+PINPOINT_REGION = os.getenv("PINPOINT_REGION")
 PINPOINT_APP_ID = os.getenv("PINPOINT_APP_ID")  # Also known as Project ID
 PINPOINT_ORIGINATION_NUMBER = os.getenv("PINPOINT_ORIGINATION_NUMBER")
+PINPOINT_CLIENT = boto3.client("pinpoint", region_name=PINPOINT_REGION)
 
 
 class AmperityPinpointRunner(AmperityBotoRunner):
