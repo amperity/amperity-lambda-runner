@@ -4,6 +4,8 @@ services:
   mock_gateway:
     image: python_env
     container_name: lambda-mock-gateway
+    networks:
+      - lambda_default
     volumes:
       - .:/code
     environment:
@@ -18,6 +20,8 @@ services:
   fake_s3:
     image: localstack/localstack:latest
     container_name: lambda-fake-s3
+    networks:
+      - lambda_default
     environment:
       - SERVICES=s3
       - DEBUG=1
@@ -32,6 +36,8 @@ services:
   api_destination:
     image: python_env
     container_name: lambda-destination-app
+    networks:
+      - lambda_default
     volumes:
       - .:/code
     environment:
@@ -42,6 +48,16 @@ services:
   
   test_app:
     image: python_env
+    networks:
+      - lambda_default
     volumes:
       - .:/code
     command: pytest test/
+
+# This subnet range is to avoid collision on amperity docker containers.
+# Not necessary for external users or you may need to change the range for your env.
+networks:
+  lambda_default:
+    ipam:
+      config:
+        - subnet: "10.128.111.0/24"
