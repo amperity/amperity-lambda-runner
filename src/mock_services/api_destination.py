@@ -13,7 +13,7 @@ def health_check():
 def mock_destination():
     req = request.json
     print(req)
-    print(len(req))
+    print(f"Recieved request with {len(req)} records.")
 
     return jsonify(message=f"Recieved request with {len(req)} records.", status=200), 200
 
