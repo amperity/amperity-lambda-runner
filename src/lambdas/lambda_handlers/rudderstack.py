@@ -6,8 +6,8 @@ from lambdas.amperity_runner import AmperityAPIRunner
 import requests
 
 
-RS_APP_NAME = os.environ.get('RS_APP_NAME')
-RS_WRITE_KEY = os.environ.get('RS_WRITE_KEY')
+RS_APP_NAME = os.environ.get('RS_APP_NAME', 'fake_app')
+RS_WRITE_KEY = os.environ.get('RS_WRITE_KEY', 'fake_key')
 
 
 def lambda_handler(event, context):

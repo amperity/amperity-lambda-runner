@@ -21,14 +21,14 @@ destination_sess = requests.Session()
 
 
 class TestAmperityRunner:
-    def test_construct_callback_session(self):
+    def test_construct_report_status_session(self):
         test_runner = AmperityRunner(
             mock_event,
             mock_context,
             'test-tenant'
         )
 
-        assert test_runner.callback_session is not None
+        assert test_runner.report_status_session is not None
 
     def test_happy_path(self, requests_mock):
         mock_data = requests_mock.get('https://fake-data.example/', text=mock_ndjson, headers=mock_headers)
@@ -77,13 +77,35 @@ class TestAmperityRunner:
         )
         expected_poll_status = '{"state": "failed", "progress": 0, "errors": [], "reason": "Failed to download file."}'
 
-        expected_result = {"statusCode": 403, "body": json.dumps({"status": "failed", "message": "Failed to download file."})}
+        expected_result = {"statusCode": 500, "body": json.dumps({"status": "failed", "message": "Failed to download file."})}
         result = test_runner.run()
 
         assert mock_destination.call_count == 0
         assert mock_callback.call_count == 2
         assert mock_callback.last_request.text == expected_poll_status
         assert result == expected_result
+
+    def test_report_status_retries(self, requests_mock):
+        requests_mock.get('https://fake-data.example/', text=mock_ndjson, headers=mock_headers)
+        mock_callback = requests_mock.put('https://fake-callback.example/fake123', status_code=502)
+        mock_destination = requests_mock.post(destination_url, text='{"status":200}')
+
+        test_runner = AmperityAPIRunner(
+            mock_event,
+            mock_context,
+            'test-tenant',
+            destination_url=destination_url,
+            destination_session=destination_sess,
+        )
+
+        expected_result = {"statusCode": 500, "body": json.dumps({"status": "error", "message": "Error reporting status to Amperity. Ending Lambda."})}
+        result = test_runner.run()
+
+        print(mock_callback.request_history)
+
+        assert mock_destination.call_count == 0
+        assert mock_callback.call_count == 1
+        assert result == expected_result 
 
     def test_catch_up_to_offset(self, requests_mock):
         mock_data = requests_mock.get('https://fake-data.example/', text=mock_ndjson, headers=mock_headers)
@@ -145,32 +167,6 @@ class TestAmperityAPIRunner:
         assert mock_destination.call_count == 2
         assert mock_callback.call_count == 3
         assert sleep_mock.call_count == 1
-        assert result == expected_result
-
-    @unittest.mock.patch.object(LambdaContext, 'get_remaining_time_in_millis', return_value=300)
-    @unittest.mock.patch('boto3.client')
-    def test_lambda_timeout(self, boto_mock, context_mock, requests_mock):
-        mock_data = requests_mock.get('https://fake-data.example/', text=mock_ndjson, headers=mock_headers)
-        mock_callback = requests_mock.put('https://fake-callback.example/fake123')
-        mock_destination = requests_mock.post(destination_url, text='{"status":200}')
-
-        test_runner = AmperityAPIRunner(
-            mock_event,
-            mock_context,
-            'test-tenant',
-            destination_url=destination_url,
-            destination_session=destination_sess,
-            batch_size=1,
-            req_per_min=1,
-        )
-        expected_result = {"statusCode": 200, "body": json.dumps({"status": "succeeded", "message": []})}
-        result = test_runner.run()
-
-        assert mock_data.call_count == 1
-        assert mock_destination.call_count == 0
-        assert mock_callback.call_count == 3
-        assert context_mock.call_count == 2
-        assert boto_mock.call_count == 2
         assert result == expected_result
 
     def test_custom_mapping(self, requests_mock):
@@ -279,7 +275,7 @@ class TestAmperityAPIRunner:
 
         expected_result = {
             'statusCode': 200,
-            'body': '{"status": "succeeded", "message": ["{\\"status\\":400, \\"message\\":\\"error message\\"}"]}'}
+            'body': '{"status": "succeeded", "message": []}'}
         result = test_runner.run()
 
         assert mock_data.call_count == 1

@@ -18,7 +18,8 @@ services:
       - fake_s3
 
   fake_s3:
-    image: localstack/localstack:latest
+    # Pinned < v2.0 as that introduced breaking changes
+    image: localstack/localstack:1.4.0
     container_name: lambda-fake-s3
     networks:
       - lambda_default

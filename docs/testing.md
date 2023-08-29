@@ -6,7 +6,7 @@ Locally we do provide a "full" environment for you to use. Below is a rough outl
 
 ## Local Tests
 
-We use [pytest](https://docs.pytest.org/en/7.1.x/getting-started.html) for our automated testing. The structure is straightforward, and you can add to it by creating a new file in `test/`. 
+We use [pytest](https://docs.pytest.org/en/latest/getting-started.html) for our automated testing. The structure is straightforward, and you can add to it by creating a new file in `test/`. 
 
 To run the full test suite use the make command: `make docker-test`
 If you'd like to run a specific test class use this make command: `make docker-test-class class_name=TestAmperityRunner`
@@ -16,9 +16,9 @@ The existing automated tests are there to assert core `AmperityRunner` logic not
 
 ## Containers
 
-
-
 ## Localstack Notes
+
+> *NOTE* Version 2.0 of Localstack introduced breaking changes. If we need to upgrade the image version > 2 it's worth investigating other local fake s3 alternatives (ie minio).
 
 Localstack seems very powerful and helpful, however, it has rather poor documentation from what I could dig up. This section is a semiformal walk-through of how we use it in case you need to do something similar.
 
@@ -77,8 +77,3 @@ The shape of the body that your lambda will be invoked with:
     "callback_url": "https://app.amperity.com/webhook/v1/"
 }
 ~~~
-
-## Resources
-
-https://aws.plainenglish.io/localstack-resource-creation-on-initialization-a86c2ce42310
-https://docs.localstack.cloud/localstack/configuration/
