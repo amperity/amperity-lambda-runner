@@ -1,0 +1,10 @@
+requests
+flask
+pytest
+boto3
+awscli-local
+python-dotenv
+requests-mock
+pycodestyle
+msal
+uuid

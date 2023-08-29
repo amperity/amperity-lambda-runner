@@ -1,0 +1,54 @@
+
+Resources:
+  ManagedInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: ManagedInstanceRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole      
+
+  AmperityRunnerGateway:
+    Type: 'AWS::Serverless::Api'
+    Properties:
+      StageName: Prod
+      Auth:
+        ApiKeyRequired: true
+        UsagePlan:
+          CreateUsagePlan: PER_API
+          UsagePlanName: AmperityRunnerGatewayAuthorization
+
+  AmperityRunnerFunction:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      FunctionName: amperity-lambda-runner
+      CodeUri: .
+      Handler: app.lambda_handler
+      Runtime: python3.9
+      Timeout: 900
+      Role: !GetAtt ManagedInstanceRole.Arn
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            RestApiId:
+              Ref: AmperityRunnerGateway
+            Path: /run
+            Method: post
+      Policies:
+        - LambdaInvokePolicy:
+            FunctionName: amperity-lambda-runner
+
+Outputs:
+  AmperityRunnerFunctionAPI:
+    Description: "API Gateway endpoint URL for FunctionName: amperity-lambda-runner"
+    Value: !Sub "https://${AmperityRunnerGateway}.execute-api.${AWS::Region}.amazonaws.com/Prod/run/"
+  AmperityRunnerFunctionAPIKey:
+    Description: "API Gateway API Key for FunctionName: amperity-lambda-runner"
+    Value: !Sub "https://console.aws.amazon.com/apigateway/home?region=${AWS::Region}#/api-keys/${AmperityRunnerGatewayApiKey}"

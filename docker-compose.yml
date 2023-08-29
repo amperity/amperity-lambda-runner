@@ -1,0 +1,64 @@
+version: "3"
+
+services:
+  mock_gateway:
+    image: python_env
+    container_name: lambda-mock-gateway
+    networks:
+      - lambda_default
+    volumes:
+      - .:/code
+    environment:
+      - FLASK_APP=lambda_gateway
+    command: sh util/docker/entrypoint.sh
+    ports:
+      - "5555:5555"
+    depends_on:
+      - api_destination
+      - fake_s3
+
+  fake_s3:
+    # Pinned < v2.0 as that introduced breaking changes
+    image: localstack/localstack:1.4.0
+    container_name: lambda-fake-s3
+    networks:
+      - lambda_default
+    environment:
+      - SERVICES=s3
+      - DEBUG=1
+      - LOCALSTACK_HOSTNAME=fake_s3
+      - DATA_DIR=/tmp/localstack/data
+    volumes:
+      - ./util/init_s3.sh:/docker-entrypoint-initaws.d/init_s3.sh
+      - ./test/fixtures:/tmp/localstack/fixtures
+    ports:
+      - "4563-4599:4563-4599"
+
+  api_destination:
+    image: python_env
+    container_name: lambda-destination-app
+    networks:
+      - lambda_default
+    volumes:
+      - .:/code
+    environment:
+      - FLASK_APP=api_destination
+    command: python src/mock_services/api_destination.py
+    ports:
+      - "5005:5005"
+  
+  test_app:
+    image: python_env
+    networks:
+      - lambda_default
+    volumes:
+      - .:/code
+    command: pytest test/
+
+# This subnet range is to avoid collision on amperity docker containers.
+# Not necessary for external users or you may need to change the range for your env.
+networks:
+  lambda_default:
+    ipam:
+      config:
+        - subnet: "10.128.111.0/24"
