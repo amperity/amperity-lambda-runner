@@ -1,8 +1,18 @@
 import json
+import logging
+import os
 
 import requests
 
+from urllib3 import Retry
+from requests.adapters import HTTPAdapter
+from requests.exceptions import RetryError
+
 from lambdas.helpers import http_response, rate_limit
+
+
+logger = logging.getLogger()
+logger.setLevel(logging.getLevelName(os.getenv('LOG_LEVEL', default='INFO')))
 
 
 class AmperityRunner:
@@ -35,9 +45,16 @@ class AmperityRunner:
         self.settings = payload.get('settings')
         self.access_token = payload.get('access_token')
 
-        self.status_url = payload.get('callback_url') + payload.get('webhook_id')
-        self.callback_session = requests.Session()
-        self.callback_session.headers.update({
+        self.report_status_url = payload.get('callback_url') + payload.get('webhook_id')
+        self.report_status_session = requests.Session()
+        # NOTE - testing locally you will need to add a mount for 'http://'
+        self.report_status_session.mount('https://', HTTPAdapter(max_retries=Retry(
+            total=3,
+            backoff_factor=0.1,
+            status_forcelist=[502, 503, 504],
+            allowed_methods={'PUT'},
+        )))
+        self.report_status_session.headers.update({
             'Content-Type': 'application/json',
             'X-Amperity-Tenant': self.tenant_id,
             'Authorization': f'Bearer {self.access_token}'
@@ -47,16 +64,31 @@ class AmperityRunner:
         self.file_bytes = 0
         self.total_bytes = 0
 
-    def poll_for_status(self, state, progress=0.0, reason=''):
+    def report_status(self, state, progress=0.0, reason=''):
+        """
+        The orchestration in your Amperity tenant waits for status updates from the Lambda for 3 hours.
+        This method executes these status updates ensuring the workflow in your tenant is accurate.
+
+        We expect some errors to occur and do not want to overwhelm the status display in your tenant and slice to
+        only 10 errors per batch. If the lambda fails the 'reason' field will display that information. We retry
+        all calls to your tenant webhook 3 times with rules defined above in the HTTPAdapter.
+        """
+        res = None
         data = json.dumps({
             'state': state,
             'progress': progress,
-            'errors': self.errors,
+            'errors': self.errors[:10],
             'reason': reason
         })
-        res = self.callback_session.put(self.status_url, data=data)
 
-        print('Polling for status...', data, res)
+        logging.info(f'Reporting status to Amperity: {data}')
+
+        try:
+            res = self.report_status_session.put(self.report_status_url, data=data)
+        except RetryError:
+            logging.error('Exceeded retries trying to communicate with Amperity.')
+
+        self.errors = []
 
         return res
 
@@ -64,31 +96,38 @@ class AmperityRunner:
         pass
 
     def run(self):
-        start_response = self.poll_for_status('running')
+        """
+        Core logic method that manages the state of the lambda. First we tell Amperity that the Lambda
+        has started and then begin streaming the file in. If either of these API calls fail we want
+        the Lambda to fail fast and inform us.
+        """
+        start_response = self.report_status('running')
 
-        # Do we want to kill a lambda if it can't report status to the app?
-        if start_response.status_code != 200:
-            return http_response(start_response.status_code, 'error', 'Error polling for status.')
+        if not start_response:
+            return http_response(500, 'error', 'Error reporting status to Amperity. Ending Lambda.')
 
         with requests.get(self.data_url, stream=True) as stream_resp:
             if stream_resp.status_code != 200:
-                self.poll_for_status('failed', 0, reason='Failed to download file.')
+                logging.error('Failed to download file.')
+                self.report_status('failed', 0, reason='Failed to download file.')
 
-                return http_response(stream_resp.status_code, 'failed', 'Failed to download file.')
+                return http_response(500, 'failed', 'Failed to download file.')
 
             self.file_bytes = int(stream_resp.headers.get('Content-Length'))
             self.process_stream(stream_resp)
 
-        # TODO - Math doesn't add up on this last call. Hardcode or figure out math problem?
-        end_poll_response = self.poll_for_status('succeeded', 1)
+        end_poll_response = self.report_status('succeeded', 1)
 
         return http_response(end_poll_response.status_code, 'succeeded', self.errors)
 
     def process_stream(self, stream_resp):
+        """
+        Method that handles all batching logic. There is logic to account for catching up if a previous
+        lamba has failed partly through executing. See our docs on how best to pass this into a lambda execution.
+        """
         data_batch = []
 
         for i, row in enumerate(stream_resp.iter_lines()):
-            # batch_offset should persist (be passed) b/w lambda runs if a timeout occurs.
             # We cannot stream to an offset so skip iterations while we are catching up.
             if self.batch_offset and i < self.batch_offset:
                 continue
@@ -100,12 +139,11 @@ class AmperityRunner:
             if len(data_batch) < self.batch_size:
                 data_batch.append(data)
             else:
-                # Do we need to add this last record to the batch?
                 self.runner_logic(data_batch)
                 data_batch = [data]
                 self.batch_offset += self.batch_size
 
-                self.poll_for_status('running', round(self.total_bytes / self.file_bytes, 2))
+                self.report_status('running', round(self.total_bytes / self.file_bytes, 2))
 
         if len(data_batch) > 0:
             self.runner_logic(data_batch)
@@ -119,7 +157,7 @@ class AmperityAPIRunner(AmperityRunner):
 
         destination_url : str
             The endpoint the runner will send data to.
-        destination_session : str
+        destination_session : requests.Session
             A configured requests Session instance. It should have auth and headers already defined
         req_per_min : int, optional
             Integer to limit requests to the endpoint if it has a limit on requests per minute.
@@ -135,6 +173,13 @@ class AmperityAPIRunner(AmperityRunner):
         self.req_per_min = req_per_min
         self.custom_mapping = custom_mapping
         self.data_key = data_key
+        # NOTE - testing locally you will need to add a mount for 'http://'
+        self.destination_session.mount('https://', HTTPAdapter(max_retries=Retry(
+            total=3,
+            backoff_factor=0.1,
+            status_forcelist=[502, 503, 504],
+            allowed_methods={'PUT', 'POST'},
+        )))
 
         self.num_requests = 0
         self.rate_limit_time_start = None
@@ -142,17 +187,19 @@ class AmperityAPIRunner(AmperityRunner):
     @rate_limit
     def runner_logic(self, data):
         mapped_data = self.custom_mapping(data) if self.custom_mapping else data
-        output_data = json.dumps({self.data_key: mapped_data}) if self.data_key else mapped_data
+        output_data = json.dumps({self.data_key: mapped_data}) if self.data_key else json.dumps(mapped_data)
 
-        resp = self.destination_session.post(
-            url=self.destination_url,
-            data=output_data
-        )
+        try:
+            resp = self.destination_session.post(
+                url=self.destination_url,
+                data=output_data
+            )
 
-        if not resp.ok:
-            # NOTE - For now going with naive approach and just constantly appending to this.
-            #  This may end up breaking poll_for_status if we exceed length limit
-            self.errors.append(resp.text)
+            if not resp.ok:
+                self.errors.append(resp.text)
+        except RetryError as e:
+            logging.error(f'Exceeded retries trying to communicate with destination. {self.destination_url}')
+            self.errors.append(str(e))
 
         self.num_requests += len(output_data)
 
